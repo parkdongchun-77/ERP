@@ -1,0 +1,12 @@
+-- Phase 6: 경리/회계 (복식부기 전표, 자동분개, 차대 일치 강제)
+-- 원본 전체 DDL은 Supabase 마이그레이션 이력(phase6_accounting)에 적용되어 있음. 이 파일은 구조 요약.
+--
+-- journal_entries(entry_no JE-YYYY-####, status posted/reversed, source_type/source_id) + journal_lines(차변/대변, 거래처).
+-- RLS: select만 허용. 생성은 create_journal_entry RPC로만 → 차변합=대변합을 함수에서 강제.
+-- create_journal_entry(cid, date, desc, source, source_id, lines jsonb, partner): 계정 코드로 라인 생성.
+-- reverse_journal_entry(entry): 차대 반전 전표 생성 + 원본 reversed.
+-- confirm_sale 갱신: 출고 수불 + 자동분개 (차)108 외상매출금 / (대)401 상품매출 + 255 부가세예수금.
+-- confirm_purchase 갱신: 입고 수불 + 자동분개 (차)146 상품 + 135 부가세대급금 / (대)251 외상매입금.
+-- receipts/payments after insert 트리거: 수금 (차)103/(대)108, 지급 (차)251/(대)103.
+-- cancel_sale/cancel_purchase 갱신: 역수불 + 연결 전표 자동 역분개.
+-- trial_balance(p_to): 기준일까지 계정별 차변/대변 합계와 잔액.
