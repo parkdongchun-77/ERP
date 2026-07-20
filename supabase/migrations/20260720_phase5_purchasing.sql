@@ -1,0 +1,11 @@
+-- Phase 5: 구매/발주 (발주→구매 분할 입고, 확정 시 입고·채무, 지급, 미지급 뷰)
+-- 원본 전체 DDL은 Supabase 마이그레이션 이력(phase5_purchasing)에 적용되어 있음. 이 파일은 구조 요약.
+--
+-- purchase_orders(+lines): 상태 draft→closed. RLS는 판매와 동일 패턴(draft만 수정, 라인은 부모 draft일 때만).
+-- purchases(+lines): 상태 draft→confirmed→canceled. warehouse_id 헤더 보유.
+-- payments: 지급 (cash/transfer/card/note).
+-- po_remaining 뷰: 발주수량 − 확정 구매수량 = 잔량 (발주×품목 단위).
+-- convert_po_to_purchase(order): 잔량만 draft 구매로 복사. 잔량 0이면 거부. 분할 입고는 draft에서 수량 수정.
+-- confirm_purchase(purchase): purchase_in 수불 기록(source=purchase) 후 confirmed. 발주 잔량 0이면 발주 closed.
+-- cancel_purchase(purchase): 역수불(adjust, source=purchase_cancel) 후 canceled. 발주는 draft로 복귀.
+-- partner_payables 뷰(security_invoker): 확정 구매 합 − 지급 합 = 거래처별 채무 잔액.

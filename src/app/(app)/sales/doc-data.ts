@@ -15,17 +15,21 @@ type RawDoc = {
   lines: RawLine[];
 };
 
-export async function fetchDocData(table: string, lineTable: string) {
+export async function fetchDocData(
+  table: string,
+  lineTable: string,
+  priceField: "price_out" | "price_in" = "price_out"
+) {
   const supabase = await createClient();
   const [{ data: docs, error }, { data: partners }, { data: items }, { data: warehouses }] =
     await Promise.all([
       supabase
         .from(table)
-        .select(`id, doc_no, doc_date, partner_id, status, memo${table === "sales" ? ", warehouse_id" : ""}, partners(name), lines:${lineTable}(line_no, item_id, qty, price, supply_amount, vat_amount)`)
+        .select(`id, doc_no, doc_date, partner_id, status, memo${table === "sales" || table === "purchases" ? ", warehouse_id" : ""}, partners(name), lines:${lineTable}(line_no, item_id, qty, price, supply_amount, vat_amount)`)
         .order("created_at", { ascending: false })
         .limit(200),
       supabase.from("partners").select("id, partner_code, name").eq("is_active", true).order("partner_code"),
-      supabase.from("items").select("id, item_code, name, price_out").eq("is_active", true).order("item_code"),
+      supabase.from("items").select(`id, item_code, name, ${priceField}`).eq("is_active", true).order("item_code"),
       supabase.from("warehouses").select("id, code, name").eq("is_active", true).order("code"),
     ]);
 
@@ -48,11 +52,14 @@ export async function fetchDocData(table: string, lineTable: string) {
     id: p.id,
     label: `[${p.partner_code}] ${p.name}`,
   }));
-  const itemOptions = (items ?? []).map((i) => ({
-    id: i.id,
-    label: `[${i.item_code}] ${i.name}`,
-    price_out: Number(i.price_out),
-  }));
+  const itemOptions = (items ?? []).map((i) => {
+    const row = i as unknown as Record<string, unknown>;
+    return {
+      id: String(row.id),
+      label: `[${row.item_code}] ${row.name}`,
+      price_out: Number(row[priceField] ?? 0),
+    };
+  });
   const warehouseOptions: Option[] = (warehouses ?? []).map((w) => ({ id: w.id, label: w.name }));
 
   return { docRows, partnerOptions, itemOptions, warehouseOptions, error };

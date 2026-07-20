@@ -10,6 +10,9 @@ import {
   convertOrderToSale,
   confirmSale,
   cancelSale,
+  convertPoToPurchase,
+  confirmPurchase,
+  cancelPurchase,
   type DocType,
   type DocLineInput,
 } from "./actions";
@@ -33,15 +36,23 @@ const STATUS_LABEL: Record<string, string> = {
   converted: "변환됨",
   confirmed: "확정",
   canceled: "취소됨",
+  closed: "마감",
 };
 const STATUS_STYLE: Record<string, string> = {
   draft: "bg-gray-100 text-gray-600",
   converted: "bg-blue-50 text-blue-600",
   confirmed: "bg-green-50 text-green-700",
   canceled: "bg-red-50 text-red-500",
+  closed: "bg-blue-50 text-blue-600",
 };
 
-const TITLE: Record<DocType, string> = { quote: "견적서", order: "주문서", sale: "판매(출고)" };
+const TITLE: Record<DocType, string> = {
+  quote: "견적서",
+  order: "주문서",
+  sale: "판매(출고)",
+  po: "발주서",
+  purchase: "구매(입고)",
+};
 
 export function DocModule({
   docType,
@@ -153,9 +164,11 @@ export function DocModule({
                 ))}
               </select>
             </div>
-            {docType === "sale" && warehouses && (
+            {(docType === "sale" || docType === "purchase") && warehouses && (
               <div>
-                <label className="mb-1 block text-xs text-gray-500">출고 창고</label>
+                <label className="mb-1 block text-xs text-gray-500">
+                  {docType === "sale" ? "출고 창고" : "입고 창고"}
+                </label>
                 <select
                   required
                   value={form.warehouse_id}
@@ -345,7 +358,33 @@ export function DocModule({
                           확정
                         </button>
                       )}
+                      {docType === "po" && (
+                        <button
+                          onClick={() => act(convertPoToPurchase, d.id, "잔량 기준으로 구매 전표를 생성하시겠습니까?")}
+                          className="text-green-700 hover:underline"
+                        >
+                          구매 변환
+                        </button>
+                      )}
+                      {docType === "purchase" && (
+                        <button
+                          onClick={() =>
+                            act(confirmPurchase, d.id, "확정하면 재고가 입고되고 수정할 수 없습니다. 확정하시겠습니까?")
+                          }
+                          className="text-green-700 hover:underline"
+                        >
+                          확정
+                        </button>
+                      )}
                     </>
+                  )}
+                  {docType === "purchase" && d.status === "confirmed" && (
+                    <button
+                      onClick={() => act(cancelPurchase, d.id, "취소하면 입고가 취소됩니다. 취소하시겠습니까?")}
+                      className="text-red-600 hover:underline"
+                    >
+                      취소
+                    </button>
                   )}
                   {docType === "sale" && d.status === "confirmed" && (
                     <>

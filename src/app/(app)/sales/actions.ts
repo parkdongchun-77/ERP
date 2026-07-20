@@ -4,7 +4,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
-export type DocType = "quote" | "order" | "sale";
+export type DocType = "quote" | "order" | "sale" | "po" | "purchase";
 export type DocLineInput = { item_id: string; qty: number; price: number };
 export type DocInput = {
   id?: string;
@@ -22,6 +22,8 @@ const CONFIG: Record<
   quote: { table: "quotes", lineTable: "quote_lines", fk: "quote_id", counter: "quote", prefix: "QT" },
   order: { table: "sales_orders", lineTable: "sales_order_lines", fk: "order_id", counter: "sales_order", prefix: "SO" },
   sale: { table: "sales", lineTable: "sales_lines", fk: "sale_id", counter: "sale", prefix: "SL" },
+  po: { table: "purchase_orders", lineTable: "purchase_order_lines", fk: "order_id", counter: "purchase_order", prefix: "PO" },
+  purchase: { table: "purchases", lineTable: "purchase_lines", fk: "purchase_id", counter: "purchase", prefix: "PU" },
 };
 
 async function ctx() {
@@ -46,8 +48,8 @@ export async function saveDoc(docType: DocType, input: DocInput) {
     partner_id: input.partner_id,
     memo: input.memo || null,
   };
-  if (docType === "sale") {
-    if (!input.warehouse_id) return { error: "출고 창고를 선택하세요." };
+  if (docType === "sale" || docType === "purchase") {
+    if (!input.warehouse_id) return { error: "창고를 선택하세요." };
     header.warehouse_id = input.warehouse_id;
   }
 
@@ -131,6 +133,48 @@ export async function cancelSale(id: string) {
   const { error } = await supabase.rpc("cancel_sale", { p_sale: id });
   if (error) return { error: error.message };
   revalidatePath("/sales");
+  return { error: null };
+}
+
+export async function convertPoToPurchase(id: string) {
+  const { supabase } = await ctx();
+  const { error } = await supabase.rpc("convert_po_to_purchase", { p_order: id });
+  if (error) return { error: error.message };
+  revalidatePath("/purchasing");
+  return { error: null };
+}
+
+export async function confirmPurchase(id: string) {
+  const { supabase } = await ctx();
+  const { error } = await supabase.rpc("confirm_purchase", { p_purchase: id });
+  if (error) return { error: error.message };
+  revalidatePath("/purchasing");
+  return { error: null };
+}
+
+export async function cancelPurchase(id: string) {
+  const { supabase } = await ctx();
+  const { error } = await supabase.rpc("cancel_purchase", { p_purchase: id });
+  if (error) return { error: error.message };
+  revalidatePath("/purchasing");
+  return { error: null };
+}
+
+export async function savePayment(input: {
+  partner_id: string;
+  payment_date: string;
+  amount: number;
+  method: string;
+  memo?: string;
+}) {
+  const { supabase, cid } = await ctx();
+  if (!cid) return { error: "소속 회사가 없습니다." };
+  if (input.amount <= 0) return { error: "지급액은 0보다 커야 합니다." };
+  const { error } = await supabase
+    .from("payments")
+    .insert({ ...input, company_id: cid, memo: input.memo || null });
+  if (error) return { error: error.message };
+  revalidatePath("/purchasing/payments");
   return { error: null };
 }
 
