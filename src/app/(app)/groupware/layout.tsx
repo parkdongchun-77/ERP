@@ -4,6 +4,7 @@ import Link from "next/link";
 const TABS = [
   { name: "전자결재", href: "/groupware" },
   { name: "게시판", href: "/groupware/board" },
+  { name: "일정", href: "/groupware/calendar" },
 ];
 
 export default function GroupwareLayout({ children }: { children: React.ReactNode }) {
