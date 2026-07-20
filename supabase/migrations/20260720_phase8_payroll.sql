@@ -1,0 +1,9 @@
+-- Phase 8: 인사/급여 (요율 테이블 기반 간이 급여대장, 확정 시 자동분개)
+-- 원본 전체 DDL은 Supabase 마이그레이션 이력(phase8_payroll) 참조. 구조 요약.
+--
+-- employees.base_salary 추가. payroll_rates(회사별 요율 %, 기본: 국민연금 4.5/건강 3.545/장기요양 0.4591/고용 0.9/소득세 3.0/지방 0.3).
+-- payroll_runs(귀속 연월, draft→confirmed, 회사·연월 유니크) + payroll_lines(gross, deductions jsonb, 공제계, net).
+-- ensure_payroll_rates(cid): 요율 없으면 기본 시드.
+-- generate_payroll(y,m): admin 전용. 재직+기본급>0 사원 전체 라인 생성.
+-- confirm_payroll(run): (차)801 급여 / (대)254 예수금 + 103 보통예금 분개 후 확정.
+-- RLS: 급여 데이터는 admin만 조회(runs/lines/rates 모두 is_admin).
