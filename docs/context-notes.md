@@ -23,8 +23,18 @@
 - 개발 환경 특이사항: Cowork 마운트 폴더에서는 npm install이 실패해 네이티브 경로(~/build)에서 설치·빌드 후 소스만 동기화하는 방식 사용. Claude Code 로컬 전환 시에는 불필요.
 - 인증 UI는 이메일/비밀번호 기반. Supabase 이메일 확인 설정에 따라 가입 직후 세션 유무가 갈리므로 양쪽 모두 처리함.
 
+## 2026-07-20 (Phase 1 잔여분 완료)
+
+- 멤버 초대: 메일 발송 미연동 상태로 토큰 링크(/invite/[token]) 수동 전달 방식. 메일 연동(Resend 등)은 별도 결정.
+- 멤버 이메일 목록은 auth.users를 API로 못 읽으므로 security definer 함수 members_with_email(cid)로 제공. 함수 내부에서 is_member 검사.
+- 권한별 메뉴: permissions에 allowed=false 행이 있을 때만 숨김(행 없음 = 허용). 관리자 전용 메뉴는 역할로 판단.
+- 마이그레이션 SQL을 supabase/migrations/에 버전명 그대로 보관하기로 결정(원본은 원격 적용, 파일은 기록/재현용).
+- 샌드박스 egress가 supabase.co를 차단(프록시 403)해 dev 서버 실행·E2E·API 프로브가 이 환경에서 불가. E2E는 스펙만 작성했고 로컬에서 `npx playwright install chromium && npm run test:e2e`로 실행해야 함. E2E 전제는 Auth 이메일 확인 off.
+- 가입 직후 세션 생성 여부(이메일 확인 설정)를 원격에서 확인하지 못함. 사용자가 대시보드 Auth 설정에서 확인 필요.
+
 ## 미결 사항
 
-- 멤버 초대 UI와 권한별 메뉴 노출, 공통 데이터 테이블 컴포넌트, Playwright E2E — Phase 1 잔여분.
-- Supabase Auth 이메일 확인 on/off 정책 결정 필요(개발 중에는 off 권장, 대시보드에서 설정).
+- Playwright E2E 로컬 1회 실행으로 인증 흐름 검증(사용자 로컬 환경).
+- Supabase Auth 이메일 확인 on/off 정책 결정(개발 중 off 권장, 대시보드에서 설정).
+- 초대 메일 발송 연동 여부.
 - 서비스명/도메인 미정. 문서번호 접두어 등에 영향 없음(테넌트 설정으로 처리).

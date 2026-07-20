@@ -12,9 +12,10 @@
 - [x] Next.js 프로젝트 스캐폴드 — build + tsc 통과 (커밋 c372148)
 - [x] companies/memberships/permissions/invitations 마이그레이션 + RLS — phase1_tenancy 적용, RLS SQL 격리 테스트 통과(A는 B 회사 0건)
 - [x] 가입 → 회사 생성(owner) 플로우 — 로그인/온보딩/RPC 구현 (커밋 8381d7c), E2E는 미작성
-- [ ] 멤버 초대(이메일 토큰) → 초대 수락 로그인 — RPC(accept_invitation)는 준비됨, UI/E2E 미구현
-- [x] 앱 셸(모듈 트리 사이드바) — 구현. 권한별 메뉴 노출은 미구현
-- [ ] 공통 데이터 테이블(정렬/페이지네이션/검색)/폼/확인 다이얼로그 — 기준정보에서 재사용 확인
+- [x] 멤버 초대(토큰 링크) → 초대 수락 — 설정>멤버 UI + /invite/[token] 구현 (커밋 f40cf25). 메일 발송은 미연동(링크 수동 전달)
+- [x] 앱 셸(모듈 트리 사이드바, 권한별 메뉴 노출) — permissions(allowed=false) 기반 숨김 + 관리자 전용 설정 메뉴 (커밋 278322f)
+- [x] 공통 데이터 테이블(정렬/페이지네이션/검색) — DataTable 구현 (커밋 278322f). Phase 2에서 재사용 확인 예정. 폼/확인 다이얼로그는 필요 시점에 추가
+- [ ] Playwright E2E 실행 — 스펙/구성 작성됨(커밋 832ba7b). 샌드박스 네트워크 제한으로 로컬 실행 필요: `npx playwright install chromium && npm run test:e2e`
 
 ## Phase 2 — 기준정보
 - [ ] items CRUD + 품목코드 테넌트 내 유일 — 중복 등록 시 에러 테스트
