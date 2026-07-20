@@ -50,6 +50,17 @@
 - 재고조정은 실사 방식 대신 ± 직접 입력 방식 채택(더 단순). 기초재고 등록도 조정으로 처리.
 - 안전재고는 품목 단위(창고 단위 아님). 품목 폼에 safety_stock 입력 필드 노출은 후속 작업.
 
+## 2026-07-20 (Phase 4 영업/판매)
+
+- 문서번호 채번은 doc_counters upsert(on conflict do update ... returning)로 동시성 안전하게 처리. 연도별 리셋.
+- 확정 전표 보호는 이중: RLS(update/delete는 draft만) + 확정/취소는 security definer RPC(내부에서 is_member 검사).
+- 라인 테이블 쓰기는 부모 문서가 draft일 때만 허용하는 RLS로 잠금.
+- 채권은 별도 잔액 테이블 없이 partner_receivables 뷰(확정 판매 합 − 수금 합)로 계산. 동기화 버그 원천 차단.
+- 판매 취소는 confirmed → canceled + 역수불(adjust, source_type=sale_cancel). 취소된 판매는 채권 집계에서 자동 제외.
+- 견적/주문/판매 UI는 공용 DocModule 하나로 처리(docType prop). 주문→판매 변환 시 창고는 W01 우선 자동 선택.
+- 수정 저장은 라인 전체 삭제 후 재삽입 방식(draft 한정이라 안전).
+- 부가세는 공급가액의 10% 고정 반올림. 면세/영세율 구분은 범위 외(필요 시 후속).
+
 ## 미결 사항
 
 - Playwright E2E 로컬 1회 실행으로 인증 흐름 검증(사용자 로컬 환경).
