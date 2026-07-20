@@ -6,6 +6,7 @@ const TABS = [
   { name: "구매(입고)", href: "/purchasing" },
   { name: "지급/미지급", href: "/purchasing/payments" },
   { name: "발주잔량", href: "/purchasing/report" },
+  { name: "구매현황", href: "/purchasing/summary" },
 ];
 
 export default function PurchasingLayout({ children }: { children: React.ReactNode }) {
