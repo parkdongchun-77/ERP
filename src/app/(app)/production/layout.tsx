@@ -4,6 +4,7 @@ import Link from "next/link";
 const TABS = [
   { name: "BOM", href: "/production" },
   { name: "작업지시", href: "/production/work-orders" },
+  { name: "소요량 조회", href: "/production/mrp" },
 ];
 
 export default function ProductionLayout({ children }: { children: React.ReactNode }) {
