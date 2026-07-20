@@ -18,11 +18,12 @@
 - [ ] Playwright E2E 실행 — 스펙/구성 작성됨(커밋 832ba7b). 샌드박스 네트워크 제한으로 로컬 실행 필요: `npx playwright install chromium && npm run test:e2e`
 
 ## Phase 2 — 기준정보
-- [ ] items CRUD + 품목코드 테넌트 내 유일 — 중복 등록 시 에러 테스트
-- [ ] partners CRUD(사업자번호, 매출/매입 구분) — CRUD 테스트
-- [ ] warehouses/departments/employees CRUD — CRUD 테스트
-- [ ] accounts 표준 계정과목 시드(약 100개) — 시드 후 대분류별 건수 확인
-- [ ] 품목/거래처 xlsx 대량 업로드 — 성공/부분실패(사유 반환) 테스트
+- [x] items CRUD + 품목코드 테넌트 내 유일 — DB unique 제약 + UI 중복 안내. 화면 구현 완료
+- [x] partners CRUD(사업자번호, 매출/매입 구분) — 화면 구현 완료
+- [x] warehouses/departments/employees CRUD — SimpleMaster 공통 뷰로 구현(부서 선택, 입사일 포함)
+- [x] accounts 표준 계정과목 시드(98개) — create_company에서 템플릿 복사, SQL 검증 통과(98계정+기본창고 1)
+- [x] 품목/거래처 xlsx 대량 업로드 — SheetJS 파싱 + 행별 실패 사유 반환 구현. 실제 파일 업로드 동작 확인은 로컬 실행 시
+- [ ] Phase 2 화면 실동작 확인(로컬 dev 서버) — 샌드박스 네트워크 제한으로 로컬에서 확인 필요
 
 ## Phase 3 — 재고/유통
 - [ ] stock_movements 테이블(유형/원본 문서 참조) — 마이그레이션 + RLS

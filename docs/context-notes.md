@@ -32,6 +32,15 @@
 - 샌드박스 egress가 supabase.co를 차단(프록시 403)해 dev 서버 실행·E2E·API 프로브가 이 환경에서 불가. E2E는 스펙만 작성했고 로컬에서 `npx playwright install chromium && npm run test:e2e`로 실행해야 함. E2E 전제는 Auth 이메일 확인 off.
 - 가입 직후 세션 생성 여부(이메일 확인 설정)를 원격에서 확인하지 못함. 사용자가 대시보드 Auth 설정에서 확인 필요.
 
+## 2026-07-20 (Phase 2 기준정보)
+
+- 표준 계정과목은 전역 account_templates(98개)에 두고, create_company가 회사별 accounts로 복사. 기본창고(W01)도 함께 생성.
+- 기준정보 쓰기 권한은 일단 회원 전체(is_member)로 허용. 역할 세분화(manager 이상 등)는 permissions 기반으로 후속 결정.
+- 창고/부서/사원은 SimpleMaster 공통 클라이언트 뷰 + 테이블·컬럼 화이트리스트 서버 액션으로 처리. 품목/거래처는 필드가 많아 전용 뷰.
+- 엑셀 업로드는 클라이언트에서 SheetJS(xlsx)로 파싱 → 서버 액션에 행 배열 전달 → 행별 insert로 실패 사유(행 번호 포함) 반환.
+- SQL 검증 시 주의: 같은 문장 안에서는 volatile 함수의 삽입 결과가 안 보인다(스냅샷). 검증 쿼리는 문장을 분리할 것.
+- 사원 마스터는 기본 필드만(사번/이름/부서/직급/입사일). 급여 관련 상세는 Phase 8에서 확장.
+
 ## 미결 사항
 
 - Playwright E2E 로컬 1회 실행으로 인증 흐름 검증(사용자 로컬 환경).
