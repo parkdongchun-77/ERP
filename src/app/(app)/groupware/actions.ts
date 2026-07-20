@@ -1,4 +1,4 @@
-// 전자결재 요청/승인/반려와 게시판 Server Actions
+// 전자결재(다단계)·게시판·일정 Server Actions
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -17,15 +17,17 @@ async function ctx() {
 export async function requestApproval(input: {
   title: string;
   content?: string;
-  approver: string;
+  approvers: string[];
+  doc_type?: "sale" | "purchase";
+  doc_id?: string;
 }) {
-  const { supabase, cid } = await ctx();
-  if (!cid) return { error: "소속 회사가 없습니다." };
-  const { error } = await supabase.from("approvals").insert({
-    company_id: cid,
-    title: input.title,
-    content: input.content || null,
-    approver: input.approver,
+  const { supabase } = await ctx();
+  const { error } = await supabase.rpc("request_approval", {
+    p_title: input.title,
+    p_content: input.content || null,
+    p_approvers: input.approvers,
+    p_doc_type: input.doc_type ?? null,
+    p_doc_id: input.doc_id ?? null,
   });
   if (error) return { error: error.message };
   revalidatePath("/groupware");
@@ -34,12 +36,11 @@ export async function requestApproval(input: {
 
 export async function decideApproval(id: string, decision: "approved" | "rejected") {
   const { supabase } = await ctx();
-  const { error, count } = await supabase
-    .from("approvals")
-    .update({ status: decision, decided_at: new Date().toISOString() }, { count: "exact" })
-    .eq("id", id);
+  const { error } = await supabase.rpc("decide_approval", {
+    p_approval: id,
+    p_decision: decision,
+  });
   if (error) return { error: error.message };
-  if (count === 0) return { error: "처리 권한이 없거나 이미 처리된 결재입니다." };
   revalidatePath("/groupware");
   return { error: null };
 }
@@ -60,5 +61,33 @@ export async function deletePost(id: string) {
   const { error } = await supabase.from("posts").delete().eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/groupware/board");
+  return { error: null };
+}
+
+export async function createEvent(input: {
+  title: string;
+  event_date: string;
+  start_time?: string;
+  memo?: string;
+}) {
+  const { supabase, cid } = await ctx();
+  if (!cid) return { error: "소속 회사가 없습니다." };
+  const { error } = await supabase.from("events").insert({
+    company_id: cid,
+    title: input.title,
+    event_date: input.event_date,
+    start_time: input.start_time || null,
+    memo: input.memo || null,
+  });
+  if (error) return { error: error.message };
+  revalidatePath("/groupware/calendar");
+  return { error: null };
+}
+
+export async function deleteEvent(id: string) {
+  const { supabase } = await ctx();
+  const { error } = await supabase.from("events").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/groupware/calendar");
   return { error: null };
 }

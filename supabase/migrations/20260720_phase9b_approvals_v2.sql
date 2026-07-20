@@ -1,0 +1,4 @@
+-- 전자결재 v2: 다단계 결재선 + 판매/구매 전표 확정 연동. 전체 DDL은 원격 이력(phase9b_approvals_v2) 참조.
+-- approvals(doc_type/doc_id 연동, current_seq) + approval_steps(seq, waiting→pending→approved/rejected).
+-- request_approval(title, content, approvers[], doc_type, doc_id): draft 전표만 연동 허용.
+-- decide_approval(id, decision): 현재 차례 결재자만. 반려 시 전체 반려. 최종 승인 시 연동 전표 자동 확정(confirm_sale/purchase).
