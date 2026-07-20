@@ -6,14 +6,14 @@
 - [x] docs/plan.md 작성 — Phase 1~13, ERD 포함
 - [x] docs/checklist.md 작성 — 이 문서
 - [x] docs/context-notes.md 작성 — 초기 결정 기록
-- [ ] Supabase 프로젝트 생성 및 연결 정보 확보 — 사용자 확인 필요
+- [x] Supabase 프로젝트 생성 및 연결 정보 확보 — hhgokwkwzcgoepszmbod, ap-northeast-2, 무료 플랜
 
 ## Phase 1 — 기반
-- [ ] Next.js 프로젝트 스캐폴드 — build + tsc 통과 확인
-- [ ] companies/memberships/permissions/invitations 마이그레이션 + RLS — 회사 A가 회사 B 데이터를 못 읽는 RLS SQL 테스트 통과
-- [ ] 가입 → 회사 생성(owner) 플로우 — E2E 통과
-- [ ] 멤버 초대(이메일 토큰) → 초대 수락 로그인 — E2E 통과
-- [ ] 앱 셸(모듈 트리 사이드바, 권한별 메뉴 노출) — 화면 확인
+- [x] Next.js 프로젝트 스캐폴드 — build + tsc 통과 (커밋 c372148)
+- [x] companies/memberships/permissions/invitations 마이그레이션 + RLS — phase1_tenancy 적용, RLS SQL 격리 테스트 통과(A는 B 회사 0건)
+- [x] 가입 → 회사 생성(owner) 플로우 — 로그인/온보딩/RPC 구현 (커밋 8381d7c), E2E는 미작성
+- [ ] 멤버 초대(이메일 토큰) → 초대 수락 로그인 — RPC(accept_invitation)는 준비됨, UI/E2E 미구현
+- [x] 앱 셸(모듈 트리 사이드바) — 구현. 권한별 메뉴 노출은 미구현
 - [ ] 공통 데이터 테이블(정렬/페이지네이션/검색)/폼/확인 다이얼로그 — 기준정보에서 재사용 확인
 
 ## Phase 2 — 기준정보

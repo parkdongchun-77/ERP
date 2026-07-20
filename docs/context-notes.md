@@ -14,7 +14,17 @@
 - 급여는 요율 테이블 기반 간이 계산. 정식 신고(4대보험/원천세/연말정산)는 범위 외로 확정.
 - 리포지토리는 Cowork outputs/erp-system에서 시작. 이후 사용자 로컬 폴더로 이동해 Claude Code에서 이어서 작업 예정.
 
-## 미결 사항 (사용자 입력 대기)
+## 2026-07-20 (Phase 1 진행)
 
-- Supabase 프로젝트: 신규 생성 여부와 조직/리전 선택. 생성 비용 확인 필요.
+- Supabase 프로젝트 확정: erp-system(hhgokwkwzcgoepszmbod), ap-northeast-2, 무료 플랜. 무료 활성 한도(2개) 때문에 vidflow를 일시정지함(데이터 보존, 복원 가능).
+- 테넌시 마이그레이션(phase1_tenancy) 적용. RLS 헬퍼는 security definer 함수(is_member/is_admin)로 memberships 재귀를 회피. 회사 생성과 초대 수락은 RPC(create_company/accept_invitation)로 원자 처리.
+- RLS 격리는 SQL 테스트로 검증 완료(사용자 A는 회사 B 데이터 0건).
+- 폰트: 템플릿의 Google Fonts(Geist)는 원격 로드 문제로 제거하고 시스템 폰트 스택 사용. 추후 Pretendard 로컬 번들 고려.
+- 개발 환경 특이사항: Cowork 마운트 폴더에서는 npm install이 실패해 네이티브 경로(~/build)에서 설치·빌드 후 소스만 동기화하는 방식 사용. Claude Code 로컬 전환 시에는 불필요.
+- 인증 UI는 이메일/비밀번호 기반. Supabase 이메일 확인 설정에 따라 가입 직후 세션 유무가 갈리므로 양쪽 모두 처리함.
+
+## 미결 사항
+
+- 멤버 초대 UI와 권한별 메뉴 노출, 공통 데이터 테이블 컴포넌트, Playwright E2E — Phase 1 잔여분.
+- Supabase Auth 이메일 확인 on/off 정책 결정 필요(개발 중에는 off 권장, 대시보드에서 설정).
 - 서비스명/도메인 미정. 문서번호 접두어 등에 영향 없음(테넌트 설정으로 처리).
