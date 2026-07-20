@@ -1,0 +1,7 @@
+-- Phase 7: 생산/제조 (BOM, 작업지시, 완료 시 제품 입고·자재 차감, 간이 원가)
+-- 원본 전체 DDL은 Supabase 마이그레이션 이력(phase7_production) 참조. 구조 요약.
+--
+-- boms(product_item_id, 회사당 제품별 1개) + bom_lines(material_item_id, qty_per).
+-- work_orders(doc_no WO-YYYY-####, 상태 ordered→completed/canceled, 창고, 완료수량, 자재원가).
+-- complete_work_order(wo, qty): BOM 자재 출고(material_out, 음수 방지 트리거 적용) + 제품 입고(production_in)
+--   + 자재원가 = Σ(qty_per × qty × 자재 price_in). RLS는 ordered 상태만 수정/삭제.
