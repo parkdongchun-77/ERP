@@ -12,6 +12,7 @@ export type ItemInput = {
   item_type?: string;
   price_in?: number;
   price_out?: number;
+  safety_stock?: number;
 };
 
 async function companyId() {

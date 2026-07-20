@@ -16,6 +16,7 @@ export type ItemRow = {
   item_type: string;
   price_in: number;
   price_out: number;
+  safety_stock: number;
   is_active: boolean;
 };
 
@@ -27,7 +28,7 @@ const TYPE_LABEL: Record<string, string> = {
   goods: "상품",
 };
 
-const EMPTY = { item_code: "", name: "", spec: "", unit: "EA", item_type: "goods", price_in: 0, price_out: 0 };
+const EMPTY = { item_code: "", name: "", spec: "", unit: "EA", item_type: "goods", price_in: 0, price_out: 0, safety_stock: 0 };
 
 export function ItemsView({ rows }: { rows: ItemRow[] }) {
   const router = useRouter();
@@ -41,6 +42,7 @@ export function ItemsView({ rows }: { rows: ItemRow[] }) {
       ...form,
       price_in: Number(form.price_in),
       price_out: Number(form.price_out),
+      safety_stock: Number(form.safety_stock),
     });
     if (error) setMessage({ type: "error", text: error });
     else {
@@ -197,6 +199,15 @@ export function ItemsView({ rows }: { rows: ItemRow[] }) {
             type="number"
             value={form.price_out}
             onChange={(e) => setForm({ ...form, price_out: Number(e.target.value) })}
+            className="w-24 rounded border px-2 py-1.5 text-sm"
+          />
+        </Field>
+        <Field label="안전재고">
+          <input
+            type="number"
+            min="0"
+            value={form.safety_stock}
+            onChange={(e) => setForm({ ...form, safety_stock: Number(e.target.value) })}
             className="w-24 rounded border px-2 py-1.5 text-sm"
           />
         </Field>
