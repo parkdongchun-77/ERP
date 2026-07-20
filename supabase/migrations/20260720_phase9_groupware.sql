@@ -1,0 +1,6 @@
+-- Phase 9: 그룹웨어 (간이 전자결재, 게시판)
+-- 원본 전체 DDL은 Supabase 마이그레이션 이력(phase9_groupware) 참조. 구조 요약.
+--
+-- approvals: 단일 결재자 모델(requester→approver, pending→approved/rejected).
+--   RLS: 요청자만 생성/취소, 결재자만 대기 건 처리, 멤버 전체 조회.
+-- posts: 게시판. 작성자 본인 또는 admin만 삭제.
