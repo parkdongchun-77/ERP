@@ -45,6 +45,7 @@ export default async function PayrollDetailPage({
             ))}
             <th className="border p-2 text-right">공제계</th>
             <th className="border p-2 text-right">실지급액</th>
+            <th className="border p-2">명세서</th>
           </tr>
         </thead>
         <tbody>
@@ -60,6 +61,15 @@ export default async function PayrollDetailPage({
               ))}
               <td className="border p-2 text-right">{Number(l.deduction_total).toLocaleString()}</td>
               <td className="border p-2 text-right font-medium">{Number(l.net).toLocaleString()}</td>
+              <td className="border p-2 text-center">
+                <a
+                  href={`/payroll/slip/${l.id}`}
+                  target="_blank"
+                  className="text-blue-600 hover:underline"
+                >
+                  인쇄
+                </a>
+              </td>
             </tr>
           ))}
         </tbody>

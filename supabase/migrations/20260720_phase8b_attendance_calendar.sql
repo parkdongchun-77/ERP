@@ -1,0 +1,4 @@
+-- 근태/연차 + 일정. 전체 DDL은 원격 이력(phase8b_attendance_calendar) 참조.
+-- employees.annual_leave_days(기본 15). attendances(사원·일자 유니크, work/leave/half/absent, 출퇴근 시각).
+-- leave_status 뷰: 당해 연도 기준 부여 − 사용(연차1/반차0.5) = 잔여.
+-- events: 일정(작성자 본인/admin 삭제).

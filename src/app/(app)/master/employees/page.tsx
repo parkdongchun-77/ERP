@@ -7,7 +7,7 @@ export default async function EmployeesPage() {
   const [{ data: employees, error }, { data: departments }] = await Promise.all([
     supabase
       .from("employees")
-      .select("id, emp_no, name, department_id, position, join_date, base_salary")
+      .select("id, emp_no, name, department_id, position, join_date, base_salary, annual_leave_days")
       .order("emp_no"),
     supabase.from("departments").select("id, name").order("code"),
   ]);
@@ -29,6 +29,7 @@ export default async function EmployeesPage() {
         { key: "position", label: "직급", width: "w-24" },
         { key: "join_date", label: "입사일", type: "date", width: "w-36" },
         { key: "base_salary", label: "기본급(월)", width: "w-32" },
+        { key: "annual_leave_days", label: "연차부여", width: "w-20" },
       ]}
       rows={employees ?? []}
     />

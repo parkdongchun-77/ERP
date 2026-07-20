@@ -28,6 +28,46 @@ export async function deletePayrollRun(id: string) {
   return { error: null };
 }
 
+export async function saveAttendance(input: {
+  employee_id: string;
+  work_date: string;
+  att_type: string;
+  check_in?: string;
+  check_out?: string;
+  memo?: string;
+}) {
+  const supabase = await createClient();
+  const { data: m } = await supabase
+    .from("memberships")
+    .select("company_id")
+    .limit(1)
+    .maybeSingle();
+  if (!m) return { error: "소속 회사가 없습니다." };
+  const { error } = await supabase.from("attendances").upsert(
+    {
+      company_id: m.company_id,
+      employee_id: input.employee_id,
+      work_date: input.work_date,
+      att_type: input.att_type,
+      check_in: input.check_in || null,
+      check_out: input.check_out || null,
+      memo: input.memo || null,
+    },
+    { onConflict: "employee_id,work_date" }
+  );
+  if (error) return { error: error.message };
+  revalidatePath("/payroll/attendance");
+  return { error: null };
+}
+
+export async function deleteAttendance(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("attendances").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/payroll/attendance");
+  return { error: null };
+}
+
 export async function updateRate(id: string, rate: number) {
   const supabase = await createClient();
   const { error } = await supabase.from("payroll_rates").update({ rate }).eq("id", id);

@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 const ALLOWED: Record<string, string[]> = {
   warehouses: ["code", "name", "is_active"],
   departments: ["code", "name", "is_active"],
-  employees: ["emp_no", "name", "department_id", "position", "join_date", "base_salary", "is_active"],
+  employees: ["emp_no", "name", "department_id", "position", "join_date", "base_salary", "annual_leave_days", "is_active"],
 };
 
 function pick(table: string, data: Record<string, unknown>) {
