@@ -4,6 +4,7 @@ import Link from "next/link";
 const TABS = [
   { name: "전표", href: "/accounting" },
   { name: "계정별원장", href: "/accounting/ledger" },
+  { name: "거래처원장", href: "/accounting/partner-ledger" },
   { name: "재무보고서", href: "/accounting/reports" },
 ];
 
