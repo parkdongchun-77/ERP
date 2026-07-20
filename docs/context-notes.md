@@ -41,6 +41,15 @@
 - SQL 검증 시 주의: 같은 문장 안에서는 volatile 함수의 삽입 결과가 안 보인다(스냅샷). 검증 쿼리는 문장을 분리할 것.
 - 사원 마스터는 기본 필드만(사번/이름/부서/직급/입사일). 급여 관련 상세는 Phase 8에서 확장.
 
+## 2026-07-20 (Phase 3 재고/유통)
+
+- 수불 이력은 insert 전용(RLS에 update/delete 정책 없음). 정정은 반대 부호 조정으로 처리.
+- 음수 재고 방지는 before insert 트리거에서 품목×창고 advisory lock 후 잔량 검사. companies.allow_negative_stock=true면 허용.
+- 현재고는 current_stock 뷰(security_invoker=true)로 제공. PostgREST에서 뷰는 FK 임베딩이 안 되므로 화면에서 items/warehouses를 별도 조회해 조인.
+- 수불부는 stock_ledger(from,to) 함수. 기초 = 기간 이전 합, 기말 = 종료일까지 합. filter 절 집계 사용.
+- 재고조정은 실사 방식 대신 ± 직접 입력 방식 채택(더 단순). 기초재고 등록도 조정으로 처리.
+- 안전재고는 품목 단위(창고 단위 아님). 품목 폼에 safety_stock 입력 필드 노출은 후속 작업.
+
 ## 미결 사항
 
 - Playwright E2E 로컬 1회 실행으로 인증 흐름 검증(사용자 로컬 환경).
