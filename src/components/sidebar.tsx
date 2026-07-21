@@ -26,9 +26,9 @@ export function Sidebar({
   const visible = MODULES.filter((m) => !hiddenModules.includes(m.key));
   return (
     <aside className="flex w-56 flex-col border-r bg-white">
-      <div className="border-b p-4">
-        <p className="truncate text-sm font-bold">{companyName}</p>
-      </div>
+      <Link href="/" className="block border-b p-4 hover:bg-gray-50" title="대시보드로 이동">
+        <p className="truncate text-sm font-bold text-gray-900">{companyName}</p>
+      </Link>
       <nav className="flex-1 overflow-y-auto p-2">
         {visible.map((m) => (
           <Link
