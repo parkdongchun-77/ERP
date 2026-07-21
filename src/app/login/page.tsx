@@ -12,7 +12,7 @@ export default async function LoginPage({
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm rounded-lg border bg-white p-8 shadow-sm">
-        <h1 className="mb-6 text-center text-xl font-bold">ERP System</h1>
+        <h1 className="mb-6 text-center text-2xl font-extrabold text-gray-900">ERP System</h1>
         {error && (
           <p className="mb-4 rounded bg-red-50 p-2 text-sm text-red-600">{error}</p>
         )}
@@ -21,7 +21,7 @@ export default async function LoginPage({
         )}
         <form className="space-y-4">
           <div>
-            <label htmlFor="email" className="mb-1 block text-sm font-medium">
+            <label htmlFor="email" className="mb-1 block text-sm font-semibold text-gray-900">
               이메일
             </label>
             <input
@@ -29,11 +29,11 @@ export default async function LoginPage({
               name="email"
               type="email"
               required
-              className="w-full rounded border px-3 py-2 text-sm"
+              className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-900"
             />
           </div>
           <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-medium">
+            <label htmlFor="password" className="mb-1 block text-sm font-semibold text-gray-900">
               비밀번호
             </label>
             <input
@@ -42,7 +42,7 @@ export default async function LoginPage({
               type="password"
               required
               minLength={6}
-              className="w-full rounded border px-3 py-2 text-sm"
+              className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-900"
             />
           </div>
           <button
@@ -53,7 +53,7 @@ export default async function LoginPage({
           </button>
           <button
             formAction={signUp}
-            className="w-full rounded border py-2 text-sm font-medium hover:bg-gray-50"
+            className="w-full rounded border border-gray-400 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100"
           >
             회원가입
           </button>
