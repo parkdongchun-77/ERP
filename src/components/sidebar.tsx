@@ -48,6 +48,12 @@ export function Sidebar({
           >
             설정 · 멤버 관리
           </Link>
+          <Link
+            href="/settings/journal-map"
+            className="block rounded px-3 py-2 text-sm text-gray-500 hover:bg-gray-100"
+          >
+            설정 · 자동분개 계정
+          </Link>
         </div>
       )}
     </aside>

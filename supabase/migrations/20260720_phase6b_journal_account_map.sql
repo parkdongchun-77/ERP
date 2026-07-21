@@ -1,0 +1,4 @@
+-- 자동분개 계정 매핑 설정. 전체 DDL은 원격 이력(phase6b_journal_account_map) 참조.
+-- journal_account_map(company_id, txn_key, account_code): 9개 키(판매 채권/매출/부가세, 구매 재고/부가세/채무, 현금성, 급여 비용/예수금).
+-- mapped_account(cid, key, default): 매핑 없으면 표준 기본 코드 반환.
+-- confirm_sale/confirm_purchase/auto_journal_receipt/auto_journal_payment/confirm_payroll이 매핑을 참조하도록 갱신.
