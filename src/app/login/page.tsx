@@ -1,5 +1,5 @@
-// 로그인/가입 페이지
-import { signIn, signUp } from "./actions";
+// 로그인/가입 페이지 (이메일 + 카카오/구글/페이스북 소셜 로그인)
+import { signIn, signUp, signInWithProvider } from "./actions";
 
 export default async function LoginPage({
   searchParams,
@@ -56,6 +56,42 @@ export default async function LoginPage({
             회원가입
           </button>
         </form>
+
+        <div className="my-5 flex items-center gap-3">
+          <hr className="flex-1" />
+          <span className="text-xs text-gray-400">또는 간편 로그인</span>
+          <hr className="flex-1" />
+        </div>
+
+        <form className="space-y-2">
+          <button
+            formAction={signInWithProvider}
+            name="provider"
+            value="kakao"
+            className="w-full rounded bg-[#FEE500] py-2 text-sm font-medium text-[#191919] hover:brightness-95"
+          >
+            카카오로 시작하기
+          </button>
+          <button
+            formAction={signInWithProvider}
+            name="provider"
+            value="google"
+            className="w-full rounded border py-2 text-sm font-medium hover:bg-gray-50"
+          >
+            Google로 시작하기
+          </button>
+          <button
+            formAction={signInWithProvider}
+            name="provider"
+            value="facebook"
+            className="w-full rounded bg-[#1877F2] py-2 text-sm font-medium text-white hover:brightness-95"
+          >
+            Facebook으로 시작하기
+          </button>
+        </form>
+        <p className="mt-3 text-center text-xs text-gray-400">
+          처음 로그인하면 계정이 자동으로 만들어집니다.
+        </p>
       </div>
     </main>
   );

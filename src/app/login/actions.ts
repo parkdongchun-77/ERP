@@ -1,8 +1,26 @@
-// 로그인/가입 Server Actions
+// 로그인/가입/소셜 로그인 Server Actions
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+
+const OAUTH_PROVIDERS = ["kakao", "google", "facebook"] as const;
+type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
+
+export async function signInWithProvider(formData: FormData) {
+  const provider = String(formData.get("provider")) as OAuthProvider;
+  if (!OAUTH_PROVIDERS.includes(provider)) redirect("/login");
+  const h = await headers();
+  const origin = h.get("origin") ?? `http://${h.get("host") ?? "localhost:3000"}`;
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: { redirectTo: `${origin}/auth/callback` },
+  });
+  if (error) redirect("/login?error=" + encodeURIComponent(error.message));
+  redirect(data.url);
+}
 
 export async function signIn(formData: FormData) {
   const supabase = await createClient();
