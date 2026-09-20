@@ -1,122 +1,107 @@
-﻿# ERP System ??Windows ?곗뒪?ы넲 ??
-湲곗〈 ??踰꾩쟾(erp.moahagwon.com)怨?媛숈? ?붾㈃??Electron?쇰줈 媛먯떬 Windows ?꾨줈洹몃옩?낅땲??
-?붾㈃ 肄붾뱶????踰꾩쟾怨??숈씪?섍퀬, ?쇱씠釉뚮윭由щ쭔 濡쒖뺄??踰덈뱾?댁꽌 CDN ?섏〈???놁빐?듬땲??
+# ERP System — Windows 데스크톱 앱
 
-## 濡쒓렇???놁씠 諛붾줈 ?ъ슜 (v1.1.0)
+웹 버전(erp.moahagwon.com)과 같은 화면을 Electron으로 감싼 Windows 프로그램입니다.
+화면 코드는 웹과 동일하고, 라이브러리만 로컬에 번들해서 CDN 의존을 없앴습니다.
 
-?⑤룆 ?ъ슜 以묒씠??濡쒓렇???붾㈃???놁빐?듬땲?? ?깆쓣 耳쒕㈃ 諛붾줈 ??쒕낫?쒓? ?밸땲??
+## 설치 · 업데이트
 
-?ㅻ쭔 **?몄쬆 ?먯껜瑜??놁븿 ?섎뒗 ?놁뒿?덈떎.** 紐⑤뱺 議고쉶媛 濡쒓렇???좏겙?쇰줈 RLS瑜??듦낵?섎뒗
-援ъ“?? ?몄뀡???놁쑝硫????붾㈃??鍮?媛믪씠 ?⑸땲?? 洹몃옒???붾㈃留??놁븷怨?湲곕룞 ??怨좎젙 怨꾩젙?쇰줈 ?먮룞 ?몄쬆?섎룄濡??덉뒿?덈떎.
+최신 설치 파일: https://github.com/parkdongchun-77/ERP/releases/latest
 
-- 怨꾩젙 ?뺣낫: `renderer/index.html` ??`AUTO_LOGIN` ?곸닔
-- ?좏겙??留뚮즺?섎㈃ ?먮룞?쇰줈 ?ㅼ떆 濡쒓렇?명빀?덈떎
-- ?쒕쾭 ?곌껐 ?ㅽ뙣 ??"?곌껐?????놁뒿?덈떎" ?붾㈃ + ?ㅼ떆 ?쒕룄 踰꾪듉
+`ERP-System-Setup-<버전>.exe` 실행 → 설치 경로 선택 → 완료.
+사용자 계정 단위 설치라 관리자 권한이 필요 없고, 바탕화면·시작 메뉴 바로가기가 생깁니다.
 
-### ?ㅼ떆 濡쒓렇???붾㈃??遺숈씠?ㅻ㈃
+**설치 후에는 자동으로 업데이트됩니다.** 앱이 시작할 때와 6시간마다 GitHub Releases를
+확인하고, 새 버전이 있으면 내려받은 뒤 "지금 재시작 / 나중에"를 묻습니다.
+도움말 → 업데이트 확인 으로 수동 확인도 됩니다.
 
-`AUTO_LOGIN` ?곸닔? `ensureSession()` ??吏?곌퀬, `boot()` ???몄뀡 ?놁쓣 ??濡쒓렇???붾㈃???꾩슦?꾨줉 ?섎룎由щ㈃ ?⑸땲?? ??踰꾩쟾(erp.moahagwon.com)?먮뒗
-濡쒓렇???붾㈃??洹몃?濡??⑥븘 ?덉쑝??洹?肄붾뱶瑜?媛?몃떎 ?곕㈃ ?⑸땲??
+서명되지 않은 프로그램이라 첫 설치 때 SmartScreen 경고가 나올 수 있습니다.
+`추가 정보 → 실행`으로 진행하면 됩니다.
 
-**??踰꾩쟾? 嫄대뱶由ъ? ?딆븯?듬땲??** 怨듦컻 ?꾨찓?몄씠???먮룞 濡쒓렇?몄쓣 嫄몃㈃
-二쇱냼瑜??꾨뒗 ?щ엺??紐⑤몢 ?ㅼ뼱?????덇린 ?뚮Ц?낅땲??
+## 로그인은 처음 한 번만
 
-## ?ㅼ튂
+첫 실행에서 로그인하면 자격증명이 **Windows 자격증명 암호화(DPAPI, Electron safeStorage)** 로
+이 PC에 저장되고, 다음부터는 로그인 화면 없이 바로 열립니다.
 
-`dist/ERP-System-Setup-1.2.0.exe` ?ㅽ뻾 ???ㅼ튂 寃쎈줈 ?좏깮 ???꾨즺.
-?ъ슜??怨꾩젙 ?⑥쐞 ?ㅼ튂(perMachine=false)??愿由ъ옄 沅뚰븳???꾩슂 ?놁뒿?덈떎.
-諛뷀깢?붾㈃쨌?쒖옉 硫붾돱 諛붾줈媛湲곌? 留뚮뱾?댁쭛?덈떎.
+- 저장 위치: `%APPDATA%\ERP System\creds.bin` (암호화됨, 다른 PC나 Windows 계정에서는 복호화 불가)
+- 업데이트 로그: `%APPDATA%\ERP System\updater.log`
+- 비밀번호가 바뀌어 자동 로그인이 실패하면 저장분을 지우고 로그인 화면을 다시 띄웁니다
+- 로그아웃 버튼 = 저장된 로그인 정보 삭제
+- 도움말 → 저장된 로그인 정보 지우기 로도 초기화할 수 있습니다
 
-?쒕챸?섏? ?딆? ?꾨줈洹몃옩?대씪 泥??ㅽ뻾 ??SmartScreen 寃쎄퀬媛 ?섏삱 ???덉뒿?덈떎.
-`異붽? ?뺣낫 ???ㅽ뻾`?쇰줈 吏꾪뻾?섎㈃ ?⑸땲?? ?놁븷?ㅻ㈃ 肄붾뱶 ?쒕챸 ?몄쬆?쒓? ?꾩슂?⑸땲????10留뚯썝?).
+**설치 파일에는 비밀번호가 들어 있지 않습니다.** 그래서 공개 GitHub Releases 에 올려도 안전하고,
+자동 업데이트를 쓸 수 있습니다. (이전 v1.1~1.2 는 비밀번호를 내장해서 배포할 수 없었습니다.)
 
-## renderer/index.html ? ?앹꽦 ?뚯씪?낅땲??(??μ냼???놁쓬)
-
-?붾㈃ 肄붾뱶瑜??뮤룸뜲?ㅽ겕????踰뚮줈 愿由ы븯吏 ?딆뒿?덈떎. **?먮낯? `erp-html/index.html` ?섎굹**?닿퀬,
-`build-renderer.js` 媛 ?곗뒪?ы넲 李⑥씠留??낇???`renderer/index.html` ??留뚮벊?덈떎.
+## 구조
 
 ```
-npm run build:renderer     # ../erp-html/index.html ??renderer/index.html
-npm run dist               # ???④퀎 ?ы븿?댁꽌 ?ㅼ튂 ?뚯씪源뚯?
+main.js              메인 프로세스 (창·메뉴·app:// 프로토콜·업데이터 기동)
+preload.js           렌더러에 노출하는 API (creds get/set/clear)
+creds.js             safeStorage 로 자격증명 암호화 저장·조회·삭제
+updater.js           electron-updater — GitHub Releases 확인·다운로드·재시작 안내
+build-renderer.js    웹 원본 → 데스크톱 renderer 생성
+release.js           빌드 산출물을 GitHub Release 로 업로드 (gh CLI 사용)
+smoke-test.js        기동·로그인·화면 검증 (34개 항목)
+renderer/
+  index.html         생성 파일 — 저장소에 없음 (아래 참고)
+  vendor/            tailwind.js · supabase.js · xlsx.js (로컬 번들, 저장소에 없음)
+build/icon.ico       앱 아이콘
 ```
 
-?낇엳??李⑥씠????媛吏?낅땲??
+## renderer/index.html 은 생성 파일입니다
 
-1. CDN ?ㅽ겕由쏀듃 3媛?Tailwind쨌supabase-js쨌SheetJS) ??`renderer/vendor/` 濡쒖뺄 ?뚯씪
-2. CSP 硫뷀? ?쒓렇 (?몃? ?듭떊? ERP ?쒕쾭濡쒕쭔)
-3. 濡쒓렇???붾㈃ ???먮룞 濡쒓렇??(`AUTO_LOGIN` ?곸닔)
+화면 코드를 웹·데스크톱 두 벌로 관리하지 않습니다. 원본은 `erp-html/index.html` 하나이고,
+`build-renderer.js` 가 데스크톱 차이만 입혀서 `renderer/index.html` 을 만듭니다.
 
-?먮낯?먯꽌 ?듭빱 臾몄옄?댁씠 ?щ씪吏硫??ㅽ겕由쏀듃媛 利됱떆 ?ㅽ뙣?섎?濡? ??履??섏젙???곗뒪?ы넲??議곗슜??源⑤쑉由щ뒗 ?쇱? ?놁뒿?덈떎.
+입히는 차이는 네 가지입니다.
 
-?앹꽦???뚯씪?먮뒗 愿由ъ옄 鍮꾨?踰덊샇媛 ?됰Ц?쇰줈 ?ㅼ뼱媛怨???μ냼??怨듦컻?대?濡?`.gitignore` 濡??쒖쇅???덉뒿?덈떎. `renderer/vendor/` ???꾨옒濡?諛쏆뒿?덈떎.
+1. CDN 스크립트 3개 → `renderer/vendor/` 로컬 파일
+2. CSP 메타 태그 (외부 통신은 ERP 서버로만)
+3. 로그인 성공 시 자격증명 저장, 로그아웃 시 삭제
+4. 세션이 없으면 로그인 화면 전에 저장된 자격증명으로 자동 로그인 시도
+
+원본에서 앵커 문자열이 사라지면 스크립트가 즉시 실패하므로 조용한 드리프트가 생기지 않습니다.
+
+`renderer/vendor/` 는 아래로 받습니다.
 ```
 curl -o renderer/vendor/tailwind.js https://cdn.tailwindcss.com/3.4.16
 curl -o renderer/vendor/supabase.js https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js
 curl -o renderer/vendor/xlsx.js     https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.mini.min.js
 ```
 
-## 援ъ“
+## app:// 프로토콜을 쓰는 이유
+
+`file://` 로 로드하면 Chromium이 localStorage 접근을 차단해서 Supabase 세션이
+유지되지 않습니다. 표준·보안 스킴으로 등록한 `app://` 을 쓰면 정상 오리진(`app://erp`)을
+갖게 되어 세션이 유지됩니다.
+
+## 보안
+
+- 설치 파일에 비밀번호 없음 (스모크 테스트가 매번 확인)
+- 자격증명은 DPAPI 암호화, 디스크에 평문 없음 (스모크 테스트가 확인)
+- CSP: 외부 통신은 `erp.141-164-46-88.sslip.io` 로만
+- `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, preload 는 creds 3개 함수만 노출
+- 외부 링크는 기본 브라우저로
+
+## 빌드 · 릴리스
 
 ```
-main.js              硫붿씤 ?꾨줈?몄뒪 (李승룸찓?는톋pp:// ?꾨줈?좎퐳)
-build-renderer.js    ???먮낯 ???곗뒪?ы넲 renderer ?앹꽦
-renderer/
-  index.html         ???붾㈃ ?꾩껜 (??踰꾩쟾怨??숈씪)
-  vendor/
-    tailwind.js      Tailwind ?고???(濡쒖뺄 踰덈뱾)
-    supabase.js      supabase-js v2 UMD (濡쒖뺄 踰덈뱾)
-build/icon.ico       ???꾩씠肄?smoke-test.js        湲곕룞 寃利??ㅽ겕由쏀듃
+npm install --include=dev          # .npmrc 에 omit=dev 가 있어 --include=dev 필요
+npm start                          # 개발 실행
+set ERP_TEST_PASSWORD=...          # 스모크 테스트용 (소스에 두지 않음)
+npm test                           # 34개 항목 검증
+npm run dist                       # 설치 파일 생성 (dist/)
+npm run release                    # dist + GitHub Release 업로드 (gh auth login 필요)
 ```
 
-## app:// ?꾨줈?좎퐳???곕뒗 ?댁쑀
+`release.js` 는 `latest.yml` · `.exe` · `.blockmap` 세 파일을 올립니다.
+`latest.yml` 이 없으면 설치본들이 새 버전을 감지하지 못합니다.
 
-`file://` 濡?濡쒕뱶?섎㈃ Chromium??localStorage ?묎렐??李⑤떒?댁꽌 Supabase ?몄뀡???좎??섏? ?딆뒿?덈떎(猿먮떎 耳??뚮쭏???щ줈洹몄씤). ?쒖?쨌蹂댁븞 ?ㅽ궡?쇰줈 ?깅줉??`app://` ???곕㈃
-?뺤긽 ?ㅻ━吏?`app://erp`)??媛뽮쾶 ?섏뼱 ?몄뀡???좎??⑸땲??
+### 빌드 시 알려진 문제
 
-## 硫붾돱
+electron-builder 가 winCodeSign 캐시를 풀 때 macOS용 심볼릭 링크 2개를 만들지 못해
+실패할 수 있습니다(Windows 개발자 모드가 꺼져 있으면 심볼릭 링크 생성에 권한 필요).
+설정 → 개인 정보 및 보안 → 개발자용 → **개발자 모드** 를 켜면 영구 해결됩니다.
 
-| 硫붾돱 | 湲곕뒫 |
-|---|---|
-| ?뚯씪 | ?덈줈怨좎묠(F5), ?몄뇙(Ctrl+P), 醫낅즺 |
-| ?몄쭛 | ?ㅽ뻾痍⑥냼쨌蹂듭궗쨌遺숈뿬?ｊ린쨌紐⑤몢?좏깮 |
-| 蹂닿린 | ?뺣?/異뺤냼, 湲곕낯 ?ш린, ?꾩껜 ?붾㈃, 媛쒕컻???꾧뎄(F12) |
-| ?꾩?留?| ??踰꾩쟾 ?닿린, ?뺣낫 |
+## 아직 없는 것
 
-李??ш린? 理쒕????곹깭??醫낅즺 ????λ릺???ㅼ쓬 ?ㅽ뻾??蹂듭썝?⑸땲??
-
-## 蹂댁븞
-
-- CSP ?곸슜: ?몃? ?듭떊? `erp.141-164-46-88.sslip.io` 濡쒕쭔 ?덉슜
-- `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`
-- ?몃? 留곹겕?????덉뿉???대━吏 ?딄퀬 湲곕낯 釉뚮씪?곗?濡??섏뼱媛?- ?뚯썝媛???놁쓬 ???쒕쾭?먯꽌??李⑤떒(`DISABLE_SIGNUP=true`)
-- 濡쒓렇????`owner`/`admin` ??븷???꾨땲硫???吏꾩엯 李⑤떒
-
-## 寃利?
-`npx electron smoke-test.js` ??20媛???ぉ ?꾨? ?듦낵 ?뺤씤:
-app:// 濡쒕뵫, 踰덈뱾 ?쇱씠釉뚮윭由? ?ㅻ━吏? localStorage, 濡쒓렇?꾩썐/濡쒓렇??
-?몄뀡 ??? ??쒕낫???뚮뜑, 7媛??붾㈃ ?쒗쉶, 肄섏넄 ?ㅻ쪟 ?놁쓬.
-
-## 鍮뚮뱶
-
-```
-npm install --include=dev      # npmrc ??omit=dev 媛 ?덉뼱 --include=dev ?꾩슂
-npx electron .                 # 媛쒕컻 ?ㅽ뻾
-npx electron-builder --win nsis  # ?ㅼ튂 ?뚯씪 ?앹꽦
-```
-
-### 鍮뚮뱶 ???뚮젮吏?臾몄젣
-
-electron-builder媛 winCodeSign 罹먯떆瑜?? ??macOS???щ낵由?留곹겕 2媛쒕? 留뚮뱾吏 紐삵빐
-?ㅽ뙣?⑸땲??Windows 媛쒕컻??紐⑤뱶媛 爰쇱졇 ?덉쑝硫??щ낵由?留곹겕 ?앹꽦??沅뚰븳???꾩슂).
-
-?닿껐梨???以??섎굹?낅땲??
-
-1. ?ㅼ젙 ??媛쒖씤 ?뺣낫 諛?蹂댁븞 ??媛쒕컻?먯슜 ??**媛쒕컻??紐⑤뱶** 耳쒓린 (沅뚯옣, ?곴뎄 ?닿껐)
-2. 罹먯떆瑜??섎룞?쇰줈 誘몃━ ??대몢湲????대쾲 鍮뚮뱶????諛⑸쾿???쇱뒿?덈떎.
-   ```
-   7za x -snld -y "-x!darwin" winCodeSign\<id>.7z -o<cache>\winCodeSign-2.6.0
-   ```
-
-## ?꾩쭅 ?녿뒗 寃?
-?먮룞 ?낅뜲?댄듃(蹂꾨룄 諛고룷 ?쒕쾭 ?꾩슂), 肄붾뱶 ?쒕챸, ?ㅽ봽?쇱씤 ?숈옉,
-嫄곕옒紐낆꽭???몄뇙 ?묒떇, ?묒? ?낅줈???대낫?닿린.
+코드 서명(SmartScreen 경고 제거, 연 10만원대 인증서 필요), 오프라인 동작, 멤버 초대 화면.

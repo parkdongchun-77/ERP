@@ -104,9 +104,19 @@ const MENU = [
   { group: "생산", items: [["bom", "BOM"], ["work-orders", "작업지시"], ["mrp", "소요량(MRP)"]] },
   { group: "인사", items: [["payroll", "급여"], ["attendance", "근태·연차"]] },
   { group: "그룹웨어", items: [["approvals", "전자결재"], ["board", "게시판"], ["calendar", "일정"]] },
+  { group: "설정", items: [["company", "회사 정보"]] },
 ];
 
-let state = { user: null, companyId: null, companyName: "", role: "" };
+let state = { user: null, companyId: null, companyName: "", role: "", company: {} };
+
+// 회사 정보(명세서 공급자란·설정 화면에서 공용). boot 와 저장 후에 호출한다.
+async function loadCompany() {
+  const { data } = await sb.from("companies").select("name,biz_no,ceo_name,phone,email,address").eq("id", state.companyId).maybeSingle();
+  state.company = data || {};
+  state.companyName = state.company.name || "회사";
+  $("companyLabel").textContent = state.companyName;
+  $("mCompany").textContent = state.companyName;
+}
 
 /* ===== 유틸 ===== */
 const $ = (id) => document.getElementById(id);
@@ -153,8 +163,7 @@ async function boot() {
   if (!m) return deny(`${user.email} 계정은 소속된 회사가 없습니다. 운영자에게 초대를 요청하세요.`);
   if (!ADMIN_ROLES.includes(m.role)) return deny(`${user.email} 계정의 권한은 '${m.role}' 입니다. 이 페이지는 관리자(owner·admin)만 사용할 수 있습니다.`);
   state.companyId = m.company_id; state.role = m.role; state.companyName = m.companies?.name ?? "회사";
-  $("companyLabel").textContent = state.companyName;
-  $("mCompany").textContent = state.companyName;
+  await loadCompany();
   $("userLabel").textContent = user.email;
   $("menu").innerHTML = MENU.map(sec =>
     (sec.group ? `<p class="mt-3 px-3 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">${sec.group}</p>` : "") +
@@ -179,6 +188,7 @@ const VIEWS = {
   bom: vBom, "work-orders": vWorkOrders, mrp: vMrp,
   payroll: vPayroll, "payroll-detail": vPayrollDetail, attendance: vAttendance,
   approvals: vApprovals, board: vBoard, calendar: vCalendar,
+  company: vCompany,
 };
 window.addEventListener("hashchange", route);
 function route() {
@@ -233,15 +243,16 @@ const XL = {
   partners: {
     sheet: "거래처", codeKey: "코드",
     cols: [["partner_code", "코드"], ["name", "상호"], ["biz_no", "사업자번호"], ["ceo_name", "대표자"],
-           ["phone", "전화"], ["email", "이메일"], ["partner_type", "구분"]],
-    sample: { 코드: "C-001", 상호: "한빛유통", 사업자번호: "123-45-67890", 대표자: "홍길동", 전화: "02-1234-5678", 이메일: "", 구분: "매출처" },
+           ["phone", "전화"], ["email", "이메일"], ["address", "주소"], ["partner_type", "구분"]],
+    sample: { 코드: "C-001", 상호: "한빛유통", 사업자번호: "123-45-67890", 대표자: "홍길동", 전화: "02-1234-5678", 이메일: "", 주소: "서울시 강남구 테헤란로 1", 구분: "매출처" },
     toRow: (r) => ({
       partner_code: String(r["코드"] ?? "").trim(), name: String(r["상호"] ?? "").trim(),
       biz_no: String(r["사업자번호"] ?? "").trim() || null, ceo_name: String(r["대표자"] ?? "").trim() || null,
       phone: String(r["전화"] ?? "").trim() || null, email: String(r["이메일"] ?? "").trim() || null,
+      address: String(r["주소"] ?? "").trim() || null,
       partner_type: Object.entries(P_TYPES).find(([, v]) => v === String(r["구분"] ?? "").trim())?.[0] || "both" }),
     fromRow: (r) => ({ 코드: r.partner_code, 상호: r.name, 사업자번호: r.biz_no || "", 대표자: r.ceo_name || "",
-      전화: r.phone || "", 이메일: r.email || "", 구분: P_TYPES[r.partner_type] || r.partner_type }),
+      전화: r.phone || "", 이메일: r.email || "", 주소: r.address || "", 구분: P_TYPES[r.partner_type] || r.partner_type }),
     required: (row) => row.partner_code && row.name,
   },
 };
@@ -437,21 +448,22 @@ async function saveItem() {
 
 const P_TYPES = { customer: "매출처", vendor: "매입처", both: "매출+매입" };
 async function vPartners() {
-  const { data, error } = await sb.from("partners").select("id,partner_code,name,biz_no,ceo_name,partner_type,phone,email").eq("is_active", true).order("partner_code");
+  const { data, error } = await sb.from("partners").select("id,partner_code,name,biz_no,ceo_name,partner_type,phone,email,address").eq("is_active", true).order("partner_code");
   if (error) throw error;
   h(`${card("거래처 등록", `<div class="flex flex-wrap items-end gap-2">
     ${fld("p_code", "코드", "w-24")}${fld("p_name", "상호", "w-40")}${fld("p_biz", "사업자번호", "w-32")}${fld("p_ceo", "대표자", "w-24")}${fld("p_tel", "전화", "w-32")}${fld("p_mail", "이메일", "w-40")}
+    ${fld("p_addr", "주소", "w-72")}
     ${sel("p_type", "구분", Object.entries(P_TYPES), "w-28", "both")}
     ${btn("savePartner()", "등록")}</div>
     ${xlBar("partners")}`)}
-  ${card(`거래처 (${(data || []).length})`, tbl(["코드", "상호", "사업자번호", "대표자", "전화", "구분", ""],
-    (data || []).map(r => [esc(r.partner_code), esc(r.name), esc(r.biz_no || ""), esc(r.ceo_name || ""), esc(r.phone || ""),
+  ${card(`거래처 (${(data || []).length})`, tbl(["코드", "상호", "사업자번호", "대표자", "전화", "주소", "구분", ""],
+    (data || []).map(r => [esc(r.partner_code), esc(r.name), esc(r.biz_no || ""), esc(r.ceo_name || ""), esc(r.phone || ""), esc(r.address || ""),
       P_TYPES[r.partner_type] || r.partner_type, `<button onclick="delRow('partners','${r.id}')" class="text-red-600 hover:underline">삭제</button>`])))}`);
 }
 async function savePartner() {
   const row = { company_id: state.companyId, partner_code: val("p_code").trim(), name: val("p_name").trim(),
     biz_no: val("p_biz").trim() || null, ceo_name: val("p_ceo").trim() || null, phone: val("p_tel").trim() || null,
-    email: val("p_mail").trim() || null, partner_type: val("p_type") };
+    email: val("p_mail").trim() || null, address: val("p_addr").trim() || null, partner_type: val("p_type") };
   if (!row.partner_code || !row.name) return toast("코드와 상호는 필수입니다", true);
   const { error } = await sb.from("partners").insert(row);
   if (error) return toast(error.code === "23505" ? "이미 존재하는 거래처코드입니다" : error.message, true);
@@ -733,16 +745,18 @@ async function docRpc(fn, param, id, msg) {
 async function printDoc(type, id) {
   const c = DOC[type];
   const { data: d, error } = await sb.from(c.table)
-    .select(`doc_no,doc_date,memo,partners(name,biz_no,ceo_name,phone),${c.lineTable}(line_no,qty,price,supply_amount,vat_amount,items(item_code,name,spec,unit))`)
+    .select(`doc_no,doc_date,memo,partners(name,biz_no,ceo_name,phone,address),${c.lineTable}(line_no,qty,price,supply_amount,vat_amount,items(item_code,name,spec,unit))`)
     .eq("id", id).single();
   if (error || !d) return toast(error?.message || "전표를 찾을 수 없습니다", true);
   const lines = [...(d[c.lineTable] || [])].sort((a, b) => a.line_no - b.line_no);
   const sup = lines.reduce((s, l) => s + Number(l.supply_amount), 0);
   const vat = lines.reduce((s, l) => s + Number(l.vat_amount), 0);
   const p = d.partners || {};
+  const me = state.company || {};
   const isSale = type === "sale";
   const title = isSale ? "거 래 명 세 서" : "입 고 명 세 서";
-  const [supplier, receiver] = isSale ? [state.companyName, p.name] : [p.name, state.companyName];
+  // 판매면 우리가 공급자, 구매면 거래처가 공급자
+  const [S, R] = isSale ? [me, p] : [p, me];
   const won2 = (n) => Number(n).toLocaleString("ko-KR");
   const rows = lines.map(l => `<tr>
       <td class="c">${l.line_no}</td><td>${esc(l.items?.item_code || "")}</td><td>${esc(l.items?.name || "")}</td>
@@ -757,11 +771,12 @@ async function printDoc(type, id) {
       <td style="width:50%"><b>문서번호</b> ${esc(d.doc_no)}</td>
       <td style="width:50%;text-align:right"><b>일자</b> ${d.doc_date}</td></tr></table>
     <table style="margin-bottom:12px"><tr>
-      <th style="width:14%">공급자</th><td style="width:36%">${esc(supplier || "")}</td>
-      <th style="width:14%">공급받는자</th><td style="width:36%">${esc(receiver || "")}</td></tr>
-      <tr><th>사업자번호</th><td>${isSale ? "" : esc(p.biz_no || "")}</td><th>사업자번호</th><td>${isSale ? esc(p.biz_no || "") : ""}</td></tr>
-      <tr><th>대표자</th><td>${isSale ? "" : esc(p.ceo_name || "")}</td><th>대표자</th><td>${isSale ? esc(p.ceo_name || "") : ""}</td></tr>
-      <tr><th>연락처</th><td>${isSale ? "" : esc(p.phone || "")}</td><th>연락처</th><td>${isSale ? esc(p.phone || "") : ""}</td></tr>
+      <th style="width:14%">공급자</th><td style="width:36%">${esc(S.name || "")}</td>
+      <th style="width:14%">공급받는자</th><td style="width:36%">${esc(R.name || "")}</td></tr>
+      <tr><th>사업자번호</th><td>${esc(S.biz_no || "")}</td><th>사업자번호</th><td>${esc(R.biz_no || "")}</td></tr>
+      <tr><th>대표자</th><td>${esc(S.ceo_name || "")}</td><th>대표자</th><td>${esc(R.ceo_name || "")}</td></tr>
+      <tr><th>주소</th><td>${esc(S.address || "")}</td><th>주소</th><td>${esc(R.address || "")}</td></tr>
+      <tr><th>연락처</th><td>${esc(S.phone || "")}</td><th>연락처</th><td>${esc(R.phone || "")}</td></tr>
     </table>
     <table><thead><tr>
       <th style="width:5%">No</th><th style="width:11%">품목코드</th><th>품목명</th><th style="width:12%">규격</th>
@@ -1362,6 +1377,33 @@ async function saveEvent() {
     event_date: val("ev_date"), start_time: val("ev_time") || null, memo: val("ev_memo").trim() || null });
   if (error) return toast(error.message, true);
   toast("등록되었습니다"); route();
+}
+
+/* ===== 회사 정보 ===== */
+// 거래명세서 공급자란과 사이드바 회사명에 쓰인다. 관리자만 수정 가능(RLS).
+async function vCompany() {
+  await loadCompany();
+  const c = state.company;
+  const f = (id, label, key, w = "w-72") => fld(id, label, w, "text", esc(c[key] || ""));
+  h(card("회사 정보", `<p class="mb-4 text-xs text-gray-500">거래명세서·입고명세서의 공급자(또는 공급받는자) 란에 그대로 인쇄됩니다.</p>
+    <div class="grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
+      ${f("co_name", "회사명", "name")}${f("co_biz", "사업자번호", "biz_no")}
+      ${f("co_ceo", "대표자", "ceo_name")}${f("co_phone", "전화", "phone")}
+      ${f("co_email", "이메일", "email")}
+      <div class="sm:col-span-2">${f("co_addr", "주소", "address", "w-full")}</div>
+    </div>
+    <div class="mt-4">${btn("saveCompany()", "저장")}</div>`));
+}
+async function saveCompany() {
+  const name = val("co_name").trim();
+  if (!name) return toast("회사명은 필수입니다", true);
+  const { error } = await sb.from("companies").update({
+    name, biz_no: val("co_biz").trim() || null, ceo_name: val("co_ceo").trim() || null,
+    phone: val("co_phone").trim() || null, email: val("co_email").trim() || null, address: val("co_addr").trim() || null,
+  }).eq("id", state.companyId);
+  if (error) return toast(error.message, true);
+  await loadCompany();
+  toast("저장되었습니다");
 }
 
 /* ===== 시작 ===== */

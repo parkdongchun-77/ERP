@@ -3,6 +3,8 @@ const { app, BrowserWindow, Menu, shell, dialog, protocol, net } = require("elec
 const path = require("node:path");
 const fs = require("node:fs");
 const url = require("node:url");
+const { registerCredsIpc, clearCreds } = require("./creds");
+const { setupUpdater, checkForUpdates } = require("./updater");
 
 const RENDERER_DIR = path.join(__dirname, "renderer");
 const STATE_FILE = path.join(app.getPath("userData"), "window-state.json");
@@ -47,6 +49,7 @@ function createWindow() {
     title: "ERP System",
     autoHideMenuBar: false,
     webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -122,6 +125,19 @@ function buildMenu() {
           click: () => shell.openExternal("https://erp.moahagwon.com/"),
         },
         {
+          label: "저장된 로그인 정보 지우기",
+          click: async (_i, w) => {
+            const { response } = await dialog.showMessageBox(w, {
+              type: "question", buttons: ["지우기", "취소"], defaultId: 1, cancelId: 1,
+              title: "로그인 정보 삭제", message: "이 PC에 저장된 로그인 정보를 지웁니다.",
+              detail: "다음 실행부터 로그인 화면이 다시 나타납니다.",
+            });
+            if (response === 0) { clearCreds(); w && w.reload(); }
+          },
+        },
+        { type: "separator" },
+        { label: "업데이트 확인", click: (_i, w) => checkForUpdates(true, w) },
+        {
           label: "정보",
           click: (_i, w) => {
             dialog.showMessageBox(w, {
@@ -165,8 +181,10 @@ if (!app.requestSingleInstanceLock()) {
       return net.fetch(url.pathToFileURL(target).toString());
     });
 
+    registerCredsIpc();
     buildMenu();
     createWindow();
+    setupUpdater(() => mainWindow);
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
