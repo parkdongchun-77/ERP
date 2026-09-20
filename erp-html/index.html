@@ -3,12 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive">
 <title>ERP System</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.mini.min.js"></script>
 <style>
   :root { color-scheme: light; }
+  /* 인쇄: 명세서 영역만 출력 */
+  #printView { display: none; }
+  @media print {
+    body > *:not(#printView) { display: none !important; }
+    #printView { display: block !important; }
+    @page { margin: 14mm; }
+  }
+  .pv { font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; color: #000; font-size: 12px; }
+  .pv h1 { font-size: 22px; letter-spacing: .4em; text-align: center; margin: 0 0 16px; }
+  .pv table { width: 100%; border-collapse: collapse; }
+  .pv th, .pv td { border: 1px solid #000; padding: 5px 7px; }
+  .pv th { background: #f0f0f0; font-weight: 600; }
+  .pv .r { text-align: right; } .pv .c { text-align: center; }
+  .pv .meta td { border: none; padding: 2px 0; }
   body { font-family: -apple-system, "Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", sans-serif; }
   input, select, textarea { color: #111 !important; background: #fff; }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -29,19 +45,19 @@
     <input id="email" type="email" autocomplete="username" class="mb-4 w-full rounded border border-gray-400 px-3 py-2 text-sm">
     <label class="mb-1 block text-sm font-semibold text-gray-900">비밀번호</label>
     <input id="password" type="password" autocomplete="current-password" class="mb-5 w-full rounded border border-gray-400 px-3 py-2 text-sm">
-    <button onclick="doLogin()" class="mb-2 w-full rounded bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">로그인</button>
-    <button onclick="doSignup()" class="w-full rounded border border-gray-400 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-100">회원가입</button>
+    <button onclick="doLogin()" class="w-full rounded bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">로그인</button>
+    <p class="mt-5 text-center text-xs leading-relaxed text-gray-400">
+      관리자 전용 페이지입니다.<br>계정은 운영자에게 문의하세요.</p>
   </div>
 </div>
 
-<!-- 회사 생성 -->
-<div id="onboardView" class="hidden min-h-screen items-center justify-center p-4">
-  <div class="w-full max-w-sm rounded-2xl border bg-white p-8 shadow-sm">
-    <h1 class="mb-2 text-xl font-bold">회사 만들기</h1>
-    <p class="mb-6 text-sm text-gray-500">등록한 사람이 소유자(owner)가 됩니다.</p>
-    <input id="companyName" placeholder="회사명" class="mb-4 w-full rounded border border-gray-400 px-3 py-2 text-sm">
-    <button onclick="createCompany()" class="w-full rounded bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">회사 생성</button>
-    <button onclick="doLogout()" class="mt-2 w-full py-2 text-xs text-gray-500 hover:underline">로그아웃</button>
+<!-- 접근 거부 -->
+<div id="denyView" class="hidden min-h-screen items-center justify-center p-4">
+  <div class="w-full max-w-sm rounded-2xl border bg-white p-8 text-center shadow-sm">
+    <p class="mb-3 text-3xl">🔒</p>
+    <h1 class="mb-2 text-lg font-bold">접근 권한이 없습니다</h1>
+    <p id="denyMsg" class="mb-6 text-sm leading-relaxed text-gray-500"></p>
+    <button onclick="doLogout()" class="w-full rounded border border-gray-400 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-100">로그아웃</button>
   </div>
 </div>
 
@@ -69,6 +85,8 @@
 </div>
 
 <div id="toast" class="fixed bottom-5 left-1/2 z-50 hidden -translate-x-1/2 rounded-lg px-4 py-2.5 text-sm text-white shadow-lg"></div>
+<div id="printView" class="pv"></div>
+<input id="xlFile" type="file" accept=".xlsx,.xls" class="hidden">
 
 <script>
 /* ===== 설정 ===== */
@@ -82,9 +100,9 @@ const MENU = [
   { group: "재고", items: [["stock", "현재고"], ["ledger", "재고수불부"], ["adjust", "재고조정"], ["transfer", "창고이동"]] },
   { group: "판매", items: [["quotes", "견적서"], ["orders", "주문서"], ["sales", "판매(출고)"], ["receipts", "수금·미수금"]] },
   { group: "구매", items: [["po", "발주서"], ["purchases", "구매(입고)"], ["payments", "지급·미지급"], ["purchase-summary", "구매현황"]] },
-  { group: "회계", items: [["journal", "전표"], ["reports", "재무보고서"], ["partner-ledger", "거래처원장"]] },
+  { group: "회계", items: [["journal", "전표"], ["reports", "재무보고서"], ["partner-ledger", "거래처원장"], ["journal-map", "자동분개 설정"]] },
   { group: "생산", items: [["bom", "BOM"], ["work-orders", "작업지시"], ["mrp", "소요량(MRP)"]] },
-  { group: "인사", items: [["payroll", "급여"]] },
+  { group: "인사", items: [["payroll", "급여"], ["attendance", "근태·연차"]] },
   { group: "그룹웨어", items: [["approvals", "전자결재"], ["board", "게시판"], ["calendar", "일정"]] },
 ];
 
@@ -109,9 +127,10 @@ function toast(msg, err) {
   clearTimeout(window._tt); window._tt = setTimeout(() => t.classList.add("hidden"), 3000);
 }
 function show(v) {
-  ["loginView", "onboardView", "appView"].forEach(x => { const e = $(x); e.classList.add("hidden"); e.classList.remove("flex"); });
+  ["loginView", "denyView", "appView"].forEach(x => { const e = $(x); e.classList.add("hidden"); e.classList.remove("flex"); });
   const e = $(v); e.classList.remove("hidden"); if (v !== "appView") e.classList.add("flex");
 }
+function deny(msg) { $("denyMsg").textContent = msg; show("denyView"); }
 function toggleNav() { $("nav").classList.toggle("hidden"); $("nav").classList.toggle("flex"); $("navBackdrop").classList.toggle("hidden"); }
 function closeNav() { if (window.innerWidth < 1024) { $("nav").classList.add("hidden"); $("nav").classList.remove("flex"); $("navBackdrop").classList.add("hidden"); } }
 
@@ -121,26 +140,18 @@ async function doLogin() {
   if (error) { $("loginMsg").textContent = error.message; $("loginMsg").classList.remove("hidden"); return; }
   await boot();
 }
-async function doSignup() {
-  const { data, error } = await sb.auth.signUp({ email: val("email").trim(), password: val("password") });
-  if (error) { $("loginMsg").textContent = error.message; $("loginMsg").classList.remove("hidden"); return; }
-  if (data.session) await boot(); else toast("확인 메일을 보냈습니다. 메일함을 확인하세요.");
-}
 async function doLogout() { await sb.auth.signOut(); location.hash = ""; show("loginView"); }
-async function createCompany() {
-  const name = val("companyName").trim();
-  if (!name) return toast("회사명을 입력하세요", true);
-  const { error } = await sb.rpc("create_company", { p_name: name });
-  if (error) return toast(error.message, true);
-  await boot();
-}
+
+// 관리자 전용: owner/admin 이외 역할은 앱 진입 차단
+const ADMIN_ROLES = ["owner", "admin"];
 
 async function boot() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return show("loginView");
   state.user = user;
   const { data: m } = await sb.from("memberships").select("company_id, role, companies(name)").limit(1).maybeSingle();
-  if (!m) return show("onboardView");
+  if (!m) return deny(`${user.email} 계정은 소속된 회사가 없습니다. 운영자에게 초대를 요청하세요.`);
+  if (!ADMIN_ROLES.includes(m.role)) return deny(`${user.email} 계정의 권한은 '${m.role}' 입니다. 이 페이지는 관리자(owner·admin)만 사용할 수 있습니다.`);
   state.companyId = m.company_id; state.role = m.role; state.companyName = m.companies?.name ?? "회사";
   $("companyLabel").textContent = state.companyName;
   $("mCompany").textContent = state.companyName;
@@ -164,9 +175,9 @@ const VIEWS = {
   po: () => vDoc("po"), purchases: () => vDoc("purchase"),
   receipts: () => vSettle("receipt"), payments: () => vSettle("payment"),
   "purchase-summary": vPurchaseSummary,
-  journal: vJournal, reports: vReports, "partner-ledger": vPartnerLedger,
+  journal: vJournal, reports: vReports, "partner-ledger": vPartnerLedger, "journal-map": vJournalMap,
   bom: vBom, "work-orders": vWorkOrders, mrp: vMrp,
-  payroll: vPayroll,
+  payroll: vPayroll, "payroll-detail": vPayrollDetail, attendance: vAttendance,
   approvals: vApprovals, board: vBoard, calendar: vCalendar,
 };
 window.addEventListener("hashchange", route);
@@ -200,6 +211,97 @@ async function delRow(table, id, msg) {
   const { error } = await sb.from(table).delete().eq("id", id);
   if (error) return toast(error.message, true);
   toast("삭제되었습니다"); route();
+}
+
+/* ===== 엑셀 가져오기 / 내보내기 (품목·거래처) ===== */
+// 헤더는 한국어 그대로 쓴다. 코드 중복은 건너뛰고 건수를 보고한다.
+const XL = {
+  items: {
+    sheet: "품목", codeKey: "품목코드",
+    cols: [["item_code", "품목코드"], ["name", "품목명"], ["spec", "규격"], ["unit", "단위"], ["item_type", "구분"],
+           ["price_in", "입고단가"], ["price_out", "출고단가"], ["safety_stock", "안전재고"]],
+    sample: { 품목코드: "A-100", 품목명: "노트북 거치대", 규격: "알루미늄", 단위: "EA", 구분: "상품", 입고단가: 12000, 출고단가: 19900, 안전재고: 20 },
+    toRow: (r) => ({
+      item_code: String(r["품목코드"] ?? "").trim(), name: String(r["품목명"] ?? "").trim(),
+      spec: String(r["규격"] ?? "").trim() || null, unit: String(r["단위"] ?? "EA").trim() || "EA",
+      item_type: Object.entries(ITEM_TYPES).find(([, v]) => v === String(r["구분"] ?? "").trim())?.[0] || "goods",
+      price_in: Number(r["입고단가"]) || 0, price_out: Number(r["출고단가"]) || 0, safety_stock: Number(r["안전재고"]) || 0 }),
+    fromRow: (r) => ({ 품목코드: r.item_code, 품목명: r.name, 규격: r.spec || "", 단위: r.unit, 구분: ITEM_TYPES[r.item_type] || r.item_type,
+      입고단가: Number(r.price_in), 출고단가: Number(r.price_out), 안전재고: Number(r.safety_stock) }),
+    required: (row) => row.item_code && row.name,
+  },
+  partners: {
+    sheet: "거래처", codeKey: "코드",
+    cols: [["partner_code", "코드"], ["name", "상호"], ["biz_no", "사업자번호"], ["ceo_name", "대표자"],
+           ["phone", "전화"], ["email", "이메일"], ["partner_type", "구분"]],
+    sample: { 코드: "C-001", 상호: "한빛유통", 사업자번호: "123-45-67890", 대표자: "홍길동", 전화: "02-1234-5678", 이메일: "", 구분: "매출처" },
+    toRow: (r) => ({
+      partner_code: String(r["코드"] ?? "").trim(), name: String(r["상호"] ?? "").trim(),
+      biz_no: String(r["사업자번호"] ?? "").trim() || null, ceo_name: String(r["대표자"] ?? "").trim() || null,
+      phone: String(r["전화"] ?? "").trim() || null, email: String(r["이메일"] ?? "").trim() || null,
+      partner_type: Object.entries(P_TYPES).find(([, v]) => v === String(r["구분"] ?? "").trim())?.[0] || "both" }),
+    fromRow: (r) => ({ 코드: r.partner_code, 상호: r.name, 사업자번호: r.biz_no || "", 대표자: r.ceo_name || "",
+      전화: r.phone || "", 이메일: r.email || "", 구분: P_TYPES[r.partner_type] || r.partner_type }),
+    required: (row) => row.partner_code && row.name,
+  },
+};
+function xlBar(kind) {
+  return `<div class="mt-3 flex flex-wrap items-center gap-2 border-t pt-3 text-xs text-gray-500">
+    <span class="font-semibold text-gray-700">엑셀</span>
+    ${btn(`xlTemplate('${kind}')`, "양식 받기", "border border-gray-400 hover:bg-gray-50")}
+    ${btn(`xlPick('${kind}')`, "가져오기(.xlsx)", "border border-gray-400 hover:bg-gray-50")}
+    ${btn(`xlExport('${kind}')`, "내보내기", "border border-gray-400 hover:bg-gray-50")}
+    <span>· 양식의 열 이름을 그대로 두고 채우세요. 코드가 이미 있으면 그 행은 건너뜁니다.</span></div>`;
+}
+function xlSave(rows, sheet, filename) {
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheet);
+  XLSX.writeFile(wb, filename);
+}
+function xlTemplate(kind) {
+  const c = XL[kind];
+  xlSave([c.sample], c.sheet, `${c.sheet}_양식.xlsx`);
+}
+async function xlExport(kind) {
+  const c = XL[kind];
+  const { data, error } = await sb.from(kind).select(c.cols.map(x => x[0]).join(",")).eq("is_active", true).order(c.cols[0][0]);
+  if (error) return toast(error.message, true);
+  if (!data.length) return toast("내보낼 데이터가 없습니다", true);
+  xlSave(data.map(c.fromRow), c.sheet, `${c.sheet}_${today()}.xlsx`);
+  toast(`${data.length}건 내보냈습니다`);
+}
+function xlPick(kind) {
+  const inp = $("xlFile");
+  inp.value = "";
+  inp.onchange = () => { if (inp.files[0]) xlImport(kind, inp.files[0]); };
+  inp.click();
+}
+async function xlImport(kind, file) {
+  const c = XL[kind];
+  let rows;
+  try {
+    const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+    rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+  } catch (e) { return toast("파일을 읽지 못했습니다: " + e.message, true); }
+  if (!rows.length) return toast("시트에 데이터가 없습니다", true);
+  if (!(c.codeKey in rows[0])) return toast(`'${c.codeKey}' 열이 없습니다. 양식 파일을 사용하세요.`, true);
+
+  const parsed = rows.map(c.toRow);
+  const bad = parsed.filter(r => !c.required(r)).length;
+  const valid = parsed.filter(c.required);
+  const codeCol = c.cols[0][0];
+  const { data: existing } = await sb.from(kind).select(codeCol);
+  const have = new Set((existing || []).map(r => r[codeCol]));
+  const seen = new Set();
+  const fresh = valid.filter(r => { const k = r[codeCol]; if (have.has(k) || seen.has(k)) return false; seen.add(k); return true; });
+  const dup = valid.length - fresh.length;
+  if (!fresh.length) return toast(`추가할 행이 없습니다 (중복 ${dup}, 필수값 누락 ${bad})`, true);
+
+  const { error } = await sb.from(kind).insert(fresh.map(r => ({ company_id: state.companyId, ...r })));
+  if (error) return toast(error.message, true);
+  toast(`${fresh.length}건 추가${dup ? `, 중복 ${dup}건 건너뜀` : ""}${bad ? `, 필수값 누락 ${bad}건 제외` : ""}`);
+  route();
 }
 const opt = (rows, v, l) => rows.map(r => [r[v], typeof l === "function" ? l(r) : r[l]]);
 
@@ -316,7 +418,8 @@ async function vItems() {
     ${fld("i_code", "품목코드", "w-28")}${fld("i_name", "품목명", "w-40")}${fld("i_spec", "규격", "w-28")}${fld("i_unit", "단위", "w-16", "text", "EA")}
     ${sel("i_type", "구분", Object.entries(ITEM_TYPES), "w-28")}
     ${fld("i_in", "입고단가", "w-24", "number", "0")}${fld("i_out", "출고단가", "w-24", "number", "0")}${fld("i_safe", "안전재고", "w-24", "number", "0")}
-    ${btn("saveItem()", "등록")}</div>`)}
+    ${btn("saveItem()", "등록")}</div>
+    ${xlBar("items")}`)}
   ${card(`품목 (${(data || []).length})`, tbl(["코드", "품목명", "규격", "단위", "구분", "입고단가", "출고단가", "안전재고", ""],
     (data || []).map(r => [esc(r.item_code), esc(r.name), esc(r.spec || ""), esc(r.unit), ITEM_TYPES[r.item_type] || r.item_type,
       won(r.price_in), won(r.price_out), won(r.safety_stock),
@@ -339,7 +442,8 @@ async function vPartners() {
   h(`${card("거래처 등록", `<div class="flex flex-wrap items-end gap-2">
     ${fld("p_code", "코드", "w-24")}${fld("p_name", "상호", "w-40")}${fld("p_biz", "사업자번호", "w-32")}${fld("p_ceo", "대표자", "w-24")}${fld("p_tel", "전화", "w-32")}${fld("p_mail", "이메일", "w-40")}
     ${sel("p_type", "구분", Object.entries(P_TYPES), "w-28", "both")}
-    ${btn("savePartner()", "등록")}</div>`)}
+    ${btn("savePartner()", "등록")}</div>
+    ${xlBar("partners")}`)}
   ${card(`거래처 (${(data || []).length})`, tbl(["코드", "상호", "사업자번호", "대표자", "전화", "구분", ""],
     (data || []).map(r => [esc(r.partner_code), esc(r.name), esc(r.biz_no || ""), esc(r.ceo_name || ""), esc(r.phone || ""),
       P_TYPES[r.partner_type] || r.partner_type, `<button onclick="delRow('partners','${r.id}')" class="text-red-600 hover:underline">삭제</button>`])))}`);
@@ -541,6 +645,8 @@ async function vDoc(type) {
         if (type === "po") act.push(`<button onclick="docRpc('convert_po_to_purchase','p_order','${d.id}','잔량 기준으로 구매 전표를 생성할까요?')" class="text-green-700 hover:underline">구매 변환</button>`);
         if (type === "purchase") act.push(`<button onclick="docRpc('confirm_purchase','p_purchase','${d.id}','확정하면 재고가 입고되고 수정할 수 없습니다. 확정할까요?')" class="text-green-700 hover:underline">확정</button>`);
       }
+      if ((type === "sale" || type === "purchase") && d.status === "confirmed")
+        act.push(`<button onclick="printDoc('${type}','${d.id}')" class="text-indigo-600 hover:underline">명세서</button>`);
       if (type === "sale" && d.status === "confirmed") act.push(`<button onclick="docRpc('cancel_sale','p_sale','${d.id}','취소하면 재고가 복원되고 역분개가 생성됩니다. 진행할까요?')" class="text-red-600 hover:underline">취소</button>`);
       if (type === "purchase" && d.status === "confirmed") act.push(`<button onclick="docRpc('cancel_purchase','p_purchase','${d.id}','취소하면 입고가 취소됩니다. 진행할까요?')" class="text-red-600 hover:underline">취소</button>`);
       return [esc(d.doc_no), d.doc_date, esc(d.partners?.name || "?"), won(t),
@@ -620,6 +726,54 @@ async function docRpc(fn, param, id, msg) {
   const { error } = await sb.rpc(fn, { [param]: id });
   if (error) return toast(error.message, true);
   toast("처리되었습니다"); route();
+}
+
+/* ===== 거래명세서 인쇄 ===== */
+// 확정된 판매/구매 전표를 인쇄 전용 레이아웃으로 그려 브라우저 인쇄 대화상자를 연다.
+async function printDoc(type, id) {
+  const c = DOC[type];
+  const { data: d, error } = await sb.from(c.table)
+    .select(`doc_no,doc_date,memo,partners(name,biz_no,ceo_name,phone),${c.lineTable}(line_no,qty,price,supply_amount,vat_amount,items(item_code,name,spec,unit))`)
+    .eq("id", id).single();
+  if (error || !d) return toast(error?.message || "전표를 찾을 수 없습니다", true);
+  const lines = [...(d[c.lineTable] || [])].sort((a, b) => a.line_no - b.line_no);
+  const sup = lines.reduce((s, l) => s + Number(l.supply_amount), 0);
+  const vat = lines.reduce((s, l) => s + Number(l.vat_amount), 0);
+  const p = d.partners || {};
+  const isSale = type === "sale";
+  const title = isSale ? "거 래 명 세 서" : "입 고 명 세 서";
+  const [supplier, receiver] = isSale ? [state.companyName, p.name] : [p.name, state.companyName];
+  const won2 = (n) => Number(n).toLocaleString("ko-KR");
+  const rows = lines.map(l => `<tr>
+      <td class="c">${l.line_no}</td><td>${esc(l.items?.item_code || "")}</td><td>${esc(l.items?.name || "")}</td>
+      <td>${esc(l.items?.spec || "")}</td><td class="c">${esc(l.items?.unit || "")}</td>
+      <td class="r">${won2(l.qty)}</td><td class="r">${won2(l.price)}</td>
+      <td class="r">${won2(l.supply_amount)}</td><td class="r">${won2(l.vat_amount)}</td></tr>`).join("");
+  const blank = Math.max(0, 12 - lines.length);
+  const pad = Array.from({ length: blank }, () => `<tr>${"<td>&nbsp;</td>".repeat(9)}</tr>`).join("");
+  $("printView").innerHTML = `
+    <h1>${title}</h1>
+    <table class="meta" style="margin-bottom:10px"><tr>
+      <td style="width:50%"><b>문서번호</b> ${esc(d.doc_no)}</td>
+      <td style="width:50%;text-align:right"><b>일자</b> ${d.doc_date}</td></tr></table>
+    <table style="margin-bottom:12px"><tr>
+      <th style="width:14%">공급자</th><td style="width:36%">${esc(supplier || "")}</td>
+      <th style="width:14%">공급받는자</th><td style="width:36%">${esc(receiver || "")}</td></tr>
+      <tr><th>사업자번호</th><td>${isSale ? "" : esc(p.biz_no || "")}</td><th>사업자번호</th><td>${isSale ? esc(p.biz_no || "") : ""}</td></tr>
+      <tr><th>대표자</th><td>${isSale ? "" : esc(p.ceo_name || "")}</td><th>대표자</th><td>${isSale ? esc(p.ceo_name || "") : ""}</td></tr>
+      <tr><th>연락처</th><td>${isSale ? "" : esc(p.phone || "")}</td><th>연락처</th><td>${isSale ? esc(p.phone || "") : ""}</td></tr>
+    </table>
+    <table><thead><tr>
+      <th style="width:5%">No</th><th style="width:11%">품목코드</th><th>품목명</th><th style="width:12%">규격</th>
+      <th style="width:6%">단위</th><th style="width:8%">수량</th><th style="width:11%">단가</th>
+      <th style="width:13%">공급가액</th><th style="width:11%">부가세</th></tr></thead>
+      <tbody>${rows}${pad}</tbody>
+      <tfoot><tr><th colspan="7" class="r">합 계</th><th class="r">${won2(sup)}</th><th class="r">${won2(vat)}</th></tr>
+      <tr><th colspan="7" class="r">총액 (부가세 포함)</th><th colspan="2" class="r" style="font-size:14px">${won2(sup + vat)} 원</th></tr></tfoot>
+    </table>
+    ${d.memo ? `<p style="margin-top:10px"><b>비고</b> ${esc(d.memo)}</p>` : ""}
+    <p style="margin-top:28px;text-align:right">위와 같이 ${isSale ? "거래" : "입고"}하였음을 확인합니다.&nbsp;&nbsp;&nbsp;&nbsp;(인)</p>`;
+  setTimeout(() => window.print(), 50);
 }
 
 /* ===== 수금 / 지급 ===== */
@@ -867,8 +1021,8 @@ async function saveBom() {
   toast("BOM이 저장되었습니다"); route();
 }
 
-const WO_LABEL = { planned: "계획", in_progress: "진행", completed: "완료", canceled: "취소" };
-const WO_STYLE = { planned: "bg-gray-100 text-gray-600", in_progress: "bg-amber-50 text-amber-700", completed: "bg-green-50 text-green-700", canceled: "bg-red-50 text-red-500" };
+const WO_LABEL = { ordered: "지시", planned: "계획", in_progress: "진행", completed: "완료", canceled: "취소" };
+const WO_STYLE = { ordered: "bg-gray-100 text-gray-600", planned: "bg-gray-100 text-gray-600", in_progress: "bg-amber-50 text-amber-700", completed: "bg-green-50 text-green-700", canceled: "bg-red-50 text-red-500" };
 async function vWorkOrders() {
   const [orders, boms, whs] = await Promise.all([
     sb.from("work_orders").select("id,doc_no,order_date,order_qty,due_date,status,completed_qty,material_cost,items(item_code,name),warehouses(name)").order("created_at", { ascending: false }).limit(100),
@@ -958,8 +1112,9 @@ async function vPayroll() {
       const g = L.reduce((s, l) => s + Number(l.gross), 0), d = L.reduce((s, l) => s + Number(l.deduction_total), 0), n = L.reduce((s, l) => s + Number(l.net), 0);
       return [`${r.pay_year}년 ${r.pay_month}월`, L.length + "명", won(g), won(d), `<span class="font-semibold">${won(n)}</span>`,
         `<span class="rounded px-2 py-0.5 text-xs ${r.status === "confirmed" ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"}">${r.status === "confirmed" ? "확정" : "임시"}</span>`,
-        r.status === "confirmed" ? "" : `<button onclick="docRpc('confirm_payroll','p_run','${r.id}','확정하면 급여 분개가 생성됩니다. 진행할까요?')" class="text-green-700 hover:underline">확정</button>
-          <button onclick="delRow('payroll_runs','${r.id}')" class="ml-2 text-red-600 hover:underline">삭제</button>`];
+        `<a href="#/payroll-detail?id=${r.id}" class="text-indigo-600 hover:underline">상세</a>` +
+        (r.status === "confirmed" ? "" : ` <button onclick="docRpc('confirm_payroll','p_run','${r.id}','확정하면 급여 분개가 생성됩니다. 진행할까요?')" class="ml-2 text-green-700 hover:underline">확정</button>
+          <button onclick="delRow('payroll_runs','${r.id}')" class="ml-2 text-red-600 hover:underline">삭제</button>`)];
     }), [1, 2, 3, 4]))}
   ${card("공제 요율", tbl(["코드", "항목", "요율"],
     (rates.data || []).map(r => [esc(r.code), esc(r.name), `${Number(r.rate)}%`]), [2]))}`);
@@ -968,6 +1123,131 @@ async function genPayroll() {
   const { error } = await sb.rpc("generate_payroll", { p_year: num("py_year"), p_month: num("py_month") });
   if (error) return toast(error.message, true);
   toast("급여대장이 생성되었습니다"); route();
+}
+
+/* ===== 급여대장 상세 + 급여명세서 인쇄 ===== */
+async function vPayrollDetail() {
+  const id = qs().get("id");
+  if (!id) { location.hash = "#/payroll"; return; }
+  const { data: run, error } = await sb.from("payroll_runs")
+    .select("id,pay_year,pay_month,status,payroll_lines(id,gross,deductions,deduction_total,net,employees(emp_no,name,position))")
+    .eq("id", id).maybeSingle();
+  if (error) throw error;
+  if (!run) { toast("급여대장을 찾을 수 없습니다", true); location.hash = "#/payroll"; return; }
+  const lines = [...(run.payroll_lines || [])].sort((a, b) => (a.employees?.emp_no || "").localeCompare(b.employees?.emp_no || ""));
+  const dedKeys = lines.length ? Object.keys(lines[0].deductions || {}) : [];
+  window._payrun = { run, lines };
+  const sum = (k) => lines.reduce((s, l) => s + Number(k === "gross" ? l.gross : k === "net" ? l.net : k === "ded" ? l.deduction_total : (l.deductions?.[k] || 0)), 0);
+  h(`<div class="flex items-center justify-between">
+      <a href="#/payroll" class="text-sm text-gray-500 hover:underline">← 급여 목록</a>
+      <span class="rounded px-2 py-0.5 text-xs ${run.status === "confirmed" ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"}">${run.status === "confirmed" ? "확정" : "임시"}</span></div>
+  ${card(`${run.pay_year}년 ${run.pay_month}월 급여대장 (${lines.length}명)`, lines.length ? tbl(
+    ["사번", "이름", "직위", "기본급", ...dedKeys, "공제계", "실지급액", "명세서"],
+    [...lines.map((l, i) => [esc(l.employees?.emp_no), esc(l.employees?.name), esc(l.employees?.position || ""), won(l.gross),
+      ...dedKeys.map(k => won(l.deductions?.[k] || 0)), won(l.deduction_total), `<span class="font-semibold">${won(l.net)}</span>`,
+      `<button onclick="printSlip(${i})" class="text-indigo-600 hover:underline">인쇄</button>`]),
+     [`<b>합계</b>`, "", "", `<b>${won(sum("gross"))}</b>`, ...dedKeys.map(k => `<b>${won(sum(k))}</b>`), `<b>${won(sum("ded"))}</b>`, `<b>${won(sum("net"))}</b>`, ""]],
+    [3, ...dedKeys.map((_, i) => 4 + i), 4 + dedKeys.length, 5 + dedKeys.length]) : empty("급여 라인이 없습니다."))}`);
+}
+function printSlip(i) {
+  const { run, lines } = window._payrun;
+  const l = lines[i];
+  const won2 = (n) => Number(n).toLocaleString("ko-KR");
+  const ded = Object.entries(l.deductions || {});
+  $("printView").innerHTML = `
+    <h1>급 여 명 세 서</h1>
+    <table class="meta" style="margin-bottom:10px"><tr>
+      <td><b>귀속</b> ${run.pay_year}년 ${run.pay_month}월</td>
+      <td style="text-align:right"><b>지급처</b> ${esc(state.companyName)}</td></tr></table>
+    <table style="margin-bottom:12px"><tr>
+      <th style="width:16%">사번</th><td style="width:34%">${esc(l.employees?.emp_no || "")}</td>
+      <th style="width:16%">성명</th><td style="width:34%">${esc(l.employees?.name || "")}</td></tr>
+      <tr><th>직위</th><td>${esc(l.employees?.position || "")}</td><th>지급일</th><td></td></tr></table>
+    <table style="margin-bottom:12px"><thead><tr><th style="width:50%">지급 항목</th><th class="r">금액</th></tr></thead>
+      <tbody><tr><td>기본급</td><td class="r">${won2(l.gross)}</td></tr></tbody>
+      <tfoot><tr><th class="r">지급 합계</th><th class="r">${won2(l.gross)}</th></tr></tfoot></table>
+    <table style="margin-bottom:12px"><thead><tr><th style="width:50%">공제 항목</th><th class="r">금액</th></tr></thead>
+      <tbody>${ded.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="r">${won2(v)}</td></tr>`).join("")}</tbody>
+      <tfoot><tr><th class="r">공제 합계</th><th class="r">${won2(l.deduction_total)}</th></tr></tfoot></table>
+    <table><tr><th style="width:50%" class="r">실 지급액</th><th class="r" style="font-size:16px">${won2(l.net)} 원</th></tr></table>
+    <p style="margin-top:24px;text-align:right">${esc(state.companyName)}&nbsp;&nbsp;&nbsp;&nbsp;(인)</p>`;
+  setTimeout(() => window.print(), 50);
+}
+
+/* ===== 근태·연차 ===== */
+const ATT_TYPES = { work: "출근", leave: "연차", half: "반차", absent: "결근" };
+async function vAttendance() {
+  const month = qs().get("month") || today().slice(0, 7);
+  const [y, m] = month.split("-").map(Number);
+  const from = `${month}-01`, to = new Date(y, m, 0).toISOString().slice(0, 10);
+  const [rec, emps, leave] = await Promise.all([
+    sb.from("attendances").select("id,work_date,att_type,check_in,check_out,memo,employees(emp_no,name)").gte("work_date", from).lte("work_date", to).order("work_date", { ascending: false }),
+    sb.from("employees").select("id,emp_no,name").eq("is_active", true).order("emp_no"),
+    sb.from("leave_status").select("employee_id,emp_no,name,granted,used,remaining"),
+  ]);
+  if (rec.error) throw rec.error;
+  h(`${card("근태 기록", `<div class="flex flex-wrap items-end gap-2">
+    ${sel("at_emp", "사원", [["", "선택"], ...opt(emps.data || [], "id", r => `[${r.emp_no}] ${r.name}`)], "w-44")}
+    ${fld("at_date", "일자", "w-36", "date", today())}
+    ${sel("at_type", "구분", Object.entries(ATT_TYPES), "w-24")}
+    ${fld("at_in", "출근", "w-28", "time")}${fld("at_out", "퇴근", "w-28", "time")}${fld("at_memo", "메모", "w-40")}
+    ${btn("saveAttendance()", "저장")}</div>
+    <p class="mt-2 text-xs text-gray-500">같은 사원·같은 날짜를 다시 저장하면 덮어씁니다. 연차 1일 = 1, 반차 = 0.5 로 차감됩니다.</p>`)}
+  <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+    <div class="xl:col-span-2">${card(`${y}년 ${m}월 근태 (${(rec.data || []).length})`, `<div class="mb-3 flex items-end gap-2">
+        ${fld("at_month", "조회 월", "w-36", "month", month)}${btn("goto('attendance',{month:val('at_month')})", "조회")}</div>` +
+      tbl(["일자", "사원", "구분", "출근", "퇴근", "메모", ""],
+        (rec.data || []).map(r => [r.work_date, `[${esc(r.employees?.emp_no)}] ${esc(r.employees?.name)}`,
+          `<span class="rounded px-2 py-0.5 text-xs ${r.att_type === "work" ? "bg-green-50 text-green-700" : r.att_type === "absent" ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-700"}">${ATT_TYPES[r.att_type] || r.att_type}</span>`,
+          r.check_in ? r.check_in.slice(0, 5) : "", r.check_out ? r.check_out.slice(0, 5) : "", esc(r.memo || ""),
+          `<button onclick="delRow('attendances','${r.id}')" class="text-red-600 hover:underline">삭제</button>`])))}</div>
+    ${card("연차 현황", tbl(["사원", "부여", "사용", "잔여"],
+      (leave.data || []).map(l => [`[${esc(l.emp_no)}] ${esc(l.name)}`, won(l.granted), won(l.used),
+        `<span class="font-semibold ${Number(l.remaining) <= 0 ? "text-red-600" : ""}">${won(l.remaining)}</span>`]), [1, 2, 3]))}
+  </div>`);
+}
+async function saveAttendance() {
+  if (!val("at_emp")) return toast("사원을 선택하세요", true);
+  const { error } = await sb.from("attendances").upsert({
+    company_id: state.companyId, employee_id: val("at_emp"), work_date: val("at_date"), att_type: val("at_type"),
+    check_in: val("at_in") || null, check_out: val("at_out") || null, memo: val("at_memo").trim() || null,
+  }, { onConflict: "employee_id,work_date" });
+  if (error) return toast(error.message, true);
+  toast("저장되었습니다"); route();
+}
+
+/* ===== 자동분개 계정 매핑 설정 ===== */
+// 빈 값으로 저장하면 매핑을 지우고 기본 계정을 쓴다.
+const TXN_KEYS = [
+  ["sale_receivable", "판매 채권 (차변)", "108"], ["sale_revenue", "판매 매출 (대변)", "401"], ["sale_vat", "판매 부가세 (대변)", "255"],
+  ["purchase_inventory", "구매 재고자산 (차변)", "146"], ["purchase_vat", "구매 부가세 (차변)", "135"], ["purchase_payable", "구매 채무 (대변)", "251"],
+  ["cash_account", "수금/지급 현금성 계정", "103"],
+  ["payroll_expense", "급여 비용 (차변)", "801"], ["payroll_withholding", "급여 예수금 (대변)", "254"],
+];
+async function vJournalMap() {
+  const [maps, accts] = await Promise.all([
+    sb.from("journal_account_map").select("txn_key,account_code"),
+    sb.from("accounts").select("code,name").eq("is_active", true).order("code"),
+  ]);
+  if (maps.error) throw maps.error;
+  const cur = new Map((maps.data || []).map(r => [r.txn_key, r.account_code]));
+  const name = new Map((accts.data || []).map(a => [a.code, a.name]));
+  h(card("자동분개 계정 매핑", `<p class="mb-4 text-xs text-gray-500">판매·구매 확정, 수금·지급, 급여 확정 시 자동으로 생성되는 분개의 계정과목을 정합니다.
+      비워두면 기본 계정을 씁니다. 변경 이후 생성되는 전표부터 적용되며 기존 전표는 바뀌지 않습니다.</p>` +
+    tbl(["항목", "기본 계정", "현재 설정", ""], TXN_KEYS.map(([k, label, def]) => [
+      esc(label), `${def} ${esc(name.get(def) || "")}`,
+      `<select id="jm_${k}" class="inp w-64"><option value="">(기본값 사용)</option>${(accts.data || []).map(a =>
+        `<option value="${a.code}" ${cur.get(k) === a.code ? "selected" : ""}>${a.code} ${esc(a.name)}</option>`).join("")}</select>`,
+      btn(`saveJournalMap('${k}')`, "저장", "border border-gray-400 hover:bg-gray-50 px-3 py-1.5")]))));
+}
+async function saveJournalMap(key) {
+  const code = val("jm_" + key);
+  const q = code
+    ? sb.from("journal_account_map").upsert({ company_id: state.companyId, txn_key: key, account_code: code }, { onConflict: "company_id,txn_key" })
+    : sb.from("journal_account_map").delete().eq("company_id", state.companyId).eq("txn_key", key);
+  const { error } = await q;
+  if (error) return toast(error.message, true);
+  toast(code ? `저장되었습니다 (${code})` : "기본값으로 되돌렸습니다");
 }
 
 /* ===== 그룹웨어 ===== */

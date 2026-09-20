@@ -44,6 +44,12 @@ app.whenReady().then(async () => {
     ok("Tailwind 로컬 번들 적용", await js("!!window.tailwind"));
     ok("supabase-js 로컬 번들 적용",
        await js("!!window.supabase?.createClient && typeof sb === 'object'"));
+    ok("SheetJS 로컬 번들 적용 + 워크북 생성",
+       await js(`(() => { try { const ws = XLSX.utils.json_to_sheet([{a:1}]); const wb = XLSX.utils.book_new();
+         XLSX.utils.book_append_sheet(wb, ws, 't'); return !!XLSX.write(wb, {type:'array', bookType:'xlsx'}).byteLength; }
+         catch (e) { return 'ERR ' + e.message; } })()`) === true);
+    ok("인쇄 함수 존재 (printDoc·printSlip)",
+       await js("typeof printDoc === 'function' && typeof printSlip === 'function'"));
 
     // CSP 적용 후에도 Tailwind 스타일이 실제로 먹는지 (버튼 배경색 확인)
     const bg = await js(`getComputedStyle(document.querySelector('#denyView button')).backgroundColor`);
@@ -79,9 +85,9 @@ app.whenReady().then(async () => {
     ok("대시보드 렌더", /매출|매입|미수금/.test(dash), dash.replace(/\s+/g, " ").slice(0, 70));
 
     // 주요 화면 순회
-    for (const [hash, needle] of [["items", "품목"], ["stock", "현재고"], ["sales", "판매"],
-                                  ["journal", "전표"], ["reports", "시산표"], ["payroll", "급여"],
-                                  ["approvals", "결재"]]) {
+    for (const [hash, needle] of [["items", "엑셀"], ["partners", "엑셀"], ["stock", "현재고"], ["sales", "판매"],
+                                  ["journal", "전표"], ["reports", "시산표"], ["journal-map", "자동분개"],
+                                  ["payroll", "급여"], ["attendance", "연차 현황"], ["approvals", "결재"]]) {
       await js(`location.hash = '#/${hash}'`);
       await wait(1800);
       const txt = await js(`document.querySelector('main').innerText`);
