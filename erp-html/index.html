@@ -114,7 +114,7 @@ let state = { user: null, companyId: null, companyName: "", role: "", company: {
 
 // 회사 정보(명세서 공급자란·설정 화면에서 공용). boot 와 저장 후에 호출한다.
 async function loadCompany() {
-  const { data } = await sb.from("companies").select("name,biz_no,ceo_name,phone,email,address").eq("id", state.companyId).maybeSingle();
+  const { data } = await sb.from("companies").select("name,biz_no,ceo_name,phone,email,address,business_type,business_item,opened_at,registered_at,tax_office,mail_order_no,mail_order_date,mail_order_office").eq("id", state.companyId).maybeSingle();
   state.company = data || {};
   state.companyName = state.company.name || "회사";
   $("companyLabel").textContent = state.companyName;
@@ -1696,14 +1696,27 @@ async function vCompany() {
       ${f("co_email", "이메일", "email")}
       <div class="sm:col-span-2">${f("co_addr", "주소", "address", "w-full")}</div>
     </div>
+    <h3 class="mb-2 mt-6 text-sm font-bold text-gray-800">사업자등록</h3>
+    <div class="grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
+      ${f("co_btype", "업태", "business_type")}${f("co_bitem", "종목", "business_item")}
+      ${fld("co_opened", "개업일", "w-72", "date", c.opened_at || "")}${fld("co_reg", "사업자등록일", "w-72", "date", c.registered_at || "")}
+      ${f("co_taxoff", "관할 세무서", "tax_office")}
+    </div>
+    <h3 class="mb-2 mt-6 text-sm font-bold text-gray-800">통신판매업 신고</h3>
+    <div class="grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
+      ${f("co_mono", "신고번호", "mail_order_no")}${fld("co_modate", "신고일", "w-72", "date", c.mail_order_date || "")}
+      ${f("co_mooff", "신고 기관", "mail_order_office")}
+    </div>
     <div class="mt-4">${btn("saveCompany()", "저장")}</div>`));
 }
 async function saveCompany() {
   const name = val("co_name").trim();
   if (!name) return toast("회사명은 필수입니다", true);
+  const t = (id) => val(id).trim() || null;
   const { error } = await sb.from("companies").update({
-    name, biz_no: val("co_biz").trim() || null, ceo_name: val("co_ceo").trim() || null,
-    phone: val("co_phone").trim() || null, email: val("co_email").trim() || null, address: val("co_addr").trim() || null,
+    name, biz_no: t("co_biz"), ceo_name: t("co_ceo"), phone: t("co_phone"), email: t("co_email"), address: t("co_addr"),
+    business_type: t("co_btype"), business_item: t("co_bitem"), opened_at: t("co_opened"), registered_at: t("co_reg"), tax_office: t("co_taxoff"),
+    mail_order_no: t("co_mono"), mail_order_date: t("co_modate"), mail_order_office: t("co_mooff"),
   }).eq("id", state.companyId);
   if (error) return toast(error.message, true);
   await loadCompany();
