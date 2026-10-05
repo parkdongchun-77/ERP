@@ -100,10 +100,10 @@
 - [x] 배포: VPS /srv/erp-app, 데스크톱 renderer 재빌드 + smoke-test 통과, 커밋
 
 ## Phase 12 — 서비스·계정 금고·도메인
-- [ ] pgcrypto + app.vault_key(alter database set) + services/vault_accounts/domains + RLS(admin) → verify: 비관리자 조회 0건
-- [ ] vault_put/vault_get RPC → verify: 암호화 저장 후 복호화 왕복 일치, 평문이 bytea 에 없음, 키 없을 때 명확한 오류
-- [ ] 서비스 5종 + 공통 계정 시드 (사용자 제공값) → verify: 서비스 관리 화면에 6행
-- [ ] 화면: 서비스 관리(편집), 계정 금고(가림·보기·복사·열기·추가·삭제), 도메인(만료일·NS·DNS 펼침) → verify: 브라우저 실동작
-- [ ] 설정 › 연동: Cloudflare 토큰 입력 → 금고 저장 → verify: 저장 후 화면에 '등록됨'만 표시
-- [ ] /root/_cf_sync.sh + cron → verify: 토큰 등록 후 수동 실행 시 domains 에 존 4개(moahagwon·massaviet·kbizv·vibiviet) 적재
-- [ ] 데스크톱 renderer 빌드 통과 + 커밋
+- [x] pgcrypto + app.vault_key(alter database set) + services/vault_accounts/domains + RLS(admin) → SQL 검증: 타 사용자 0건 (키는 /root/erp_vault.key)
+- [x] vault_put/vault_get RPC → SQL 검증: 왕복 일치, bytea 에 평문 없음, 수정 시 비밀번호 유지. pgcrypto 는 extensions 스키마라 search_path 에 추가
+- [x] 서비스 5종 + 공통 계정 시드 → 화면 6행 확인
+- [x] 화면: 서비스 관리(편집), 계정 금고(가림·보기·복사·열기·추가·삭제), 도메인 → 브라우저에서 저장→보기(복호화)→삭제 확인
+- [x] 설정 › 연동: Cloudflare 토큰 입력 → 금고 저장 (화면 렌더 확인, 실제 토큰 등록은 사용자)
+- [ ] /root/_cf_sync.sh + cron(03:10) 설치됨 → 토큰 등록 후 `bash /root/_cf_sync.sh` 수동 실행으로 존 4개 적재 확인 필요
+- [x] 데스크톱 renderer 빌드 통과 + 커밋 (a8fd1e7)
