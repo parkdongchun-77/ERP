@@ -44,8 +44,9 @@
     <label class="mb-1 block text-sm font-semibold text-gray-900">이메일</label>
     <input id="email" type="email" autocomplete="username" class="mb-4 w-full rounded border border-gray-400 px-3 py-2 text-sm">
     <label class="mb-1 block text-sm font-semibold text-gray-900">비밀번호</label>
-    <input id="password" type="password" autocomplete="current-password" class="mb-5 w-full rounded border border-gray-400 px-3 py-2 text-sm">
-    <button onclick="doLogin()" class="w-full rounded bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">로그인</button>
+    <input id="password" type="password" autocomplete="current-password" class="mb-3 w-full rounded border border-gray-400 px-3 py-2 text-sm">
+    <label id="rememberBox" class="mb-5 flex items-center gap-2 text-xs text-gray-600"><input id="remember" type="checkbox" class="h-4 w-4"> 이 브라우저에 아이디·비밀번호 저장 (다음부터 바로 로그인)</label>
+    <button onclick="webLogin()" class="w-full rounded bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">로그인</button>
     <p class="mt-5 text-center text-xs leading-relaxed text-gray-400">
       관리자 전용 페이지입니다.<br>계정은 운영자에게 문의하세요.</p>
   </div>
@@ -101,6 +102,7 @@ const MENU = [
   { group: "판매", items: [["quotes", "견적서"], ["orders", "주문서"], ["sales", "판매(출고)"], ["receipts", "수금·미수금"]] },
   { group: "구매", items: [["po", "발주서"], ["purchases", "구매(입고)"], ["payments", "지급·미지급"], ["purchase-summary", "구매현황"]] },
   { group: "회계", items: [["journal", "전표"], ["reports", "재무보고서"], ["partner-ledger", "거래처원장"], ["journal-map", "자동분개 설정"]] },
+  { group: "금융수집", items: [["fin-bank", "은행거래"], ["fin-card", "카드내역"], ["fin-tax", "세금계산서"]] },
   { group: "생산", items: [["bom", "BOM"], ["work-orders", "작업지시"], ["mrp", "소요량(MRP)"]] },
   { group: "인사", items: [["payroll", "급여"], ["attendance", "근태·연차"]] },
   { group: "그룹웨어", items: [["approvals", "전자결재"], ["board", "게시판"], ["calendar", "일정"]] },
@@ -152,12 +154,29 @@ async function doLogin() {
 }
 async function doLogout() { await sb.auth.signOut(); location.hash = ""; show("loginView"); }
 
+// 웹 버전 로그인 기억: 체크 시 이 브라우저의 localStorage 에 저장하고, 다음 방문 때 입력칸을 채워 자동 로그인한다.
+// 브라우저 저장소라 PC 를 공유하면 노출될 수 있다 — 본인 PC 에서만 켜도록 안내 문구를 둔다. 데스크톱 앱은 OS 키체인을 쓰므로 이 기능을 끈다.
+const LOGIN_KEY = "erp.login";
+function savedLogin() { try { const v = localStorage.getItem(LOGIN_KEY); return v ? JSON.parse(decodeURIComponent(escape(atob(v)))) : null; } catch { return null; } }
+async function webLogin() {
+  if ($("remember").checked) localStorage.setItem(LOGIN_KEY, btoa(unescape(encodeURIComponent(JSON.stringify({ email: val("email").trim(), password: val("password") })))));
+  else localStorage.removeItem(LOGIN_KEY);
+  await doLogin();
+}
+async function fillSavedLogin() {
+  if (window.desktop) return false;
+  const c = savedLogin(); if (!c) return false;
+  $("email").value = c.email; $("password").value = c.password; $("remember").checked = true;
+  return true;
+}
+document.addEventListener("keydown", (e) => { if (e.key === "Enter" && !$("loginView").classList.contains("hidden")) webLogin(); });
+
 // 관리자 전용: owner/admin 이외 역할은 앱 진입 차단
 const ADMIN_ROLES = ["owner", "admin"];
 
 async function boot() {
   const { data: { user } } = await sb.auth.getUser();
-  if (!user) return show("loginView");
+  if (!user) { show("loginView"); if (await fillSavedLogin()) await doLogin(); return; }
   state.user = user;
   const { data: m } = await sb.from("memberships").select("company_id, role, companies(name)").limit(1).maybeSingle();
   if (!m) return deny(`${user.email} 계정은 소속된 회사가 없습니다. 운영자에게 초대를 요청하세요.`);
@@ -185,6 +204,7 @@ const VIEWS = {
   receipts: () => vSettle("receipt"), payments: () => vSettle("payment"),
   "purchase-summary": vPurchaseSummary,
   journal: vJournal, reports: vReports, "partner-ledger": vPartnerLedger, "journal-map": vJournalMap,
+  "fin-bank": () => vFin("bank"), "fin-card": () => vFin("card"), "fin-tax": () => vFin("tax"),
   bom: vBom, "work-orders": vWorkOrders, mrp: vMrp,
   payroll: vPayroll, "payroll-detail": vPayrollDetail, attendance: vAttendance,
   approvals: vApprovals, board: vBoard, calendar: vCalendar,
@@ -871,7 +891,7 @@ async function vJournal() {
   ]);
   if (entries.error) throw entries.error;
   window._accts = accounts.data || [];
-  const SRC = { manual: "수기", sale: "판매", purchase: "구매", receipt: "수금", payment: "지급", payroll: "급여", production: "생산" };
+  const SRC = { manual: "수기", sale: "판매", purchase: "구매", receipt: "수금", payment: "지급", payroll: "급여", production: "생산", bank: "은행", card: "카드", tax_invoice: "세금계산서" };
   h(`${card("수기 전표 입력", `
     <div class="mb-3 flex flex-wrap items-end gap-2">${fld("j_date", "전표일자", "w-36", "date", today())}${fld("j_desc", "적요", "w-72")}</div>
     <div id="jBox"></div>
@@ -1238,6 +1258,7 @@ const TXN_KEYS = [
   ["purchase_inventory", "구매 재고자산 (차변)", "146"], ["purchase_vat", "구매 부가세 (차변)", "135"], ["purchase_payable", "구매 채무 (대변)", "251"],
   ["cash_account", "수금/지급 현금성 계정", "103"],
   ["payroll_expense", "급여 비용 (차변)", "801"], ["payroll_withholding", "급여 예수금 (대변)", "254"],
+  ["card_payable", "카드 결제 미지급금 (대변)", "251"],
 ];
 async function vJournalMap() {
   const [maps, accts] = await Promise.all([
@@ -1265,8 +1286,289 @@ async function saveJournalMap(key) {
   toast(code ? `저장되었습니다 (${code})` : "기본값으로 되돌렸습니다");
 }
 
+/* ===== 금융수집 (은행·카드·세금계산서 엑셀 반자동) ===== */
+// 각 사이트에서 내려받은 엑셀을 그대로 올린다. 헤더 키워드로 열을 자동 인식하고, 실패한 열만 손으로 지정해 프로필로 저장한다.
+// 중복은 fingerprint(종류|일시|금액|적요 등) unique 로 DB가 막는다. 전표는 post_fin_entry RPC 가 만든다.
+const FIN = {
+  bank: { table: "bank_transactions", title: "은행거래", dateCol: "txn_at", source: "bank",
+    fields: [
+      ["txn_at", "거래일시", ["거래일시", "거래일자", "거래 일시", "거래 일자", "거래일", "일자", "날짜", "일시"]],
+      ["deposit", "입금액", ["입금액", "입금", "맡기신금액", "맡기신 금액", "입금금액"]],
+      ["withdrawal", "출금액", ["출금액", "출금", "찾으신금액", "찾으신 금액", "출금금액"]],
+      ["balance", "잔액", ["거래후잔액", "거래 후 잔액", "잔액"]],
+      ["description", "적요", ["적요", "거래내용", "기재내용", "내용", "보낸분/받는분", "받는분", "보내는분", "상대계좌예금주명", "거래처", "의뢰인/수취인"]],
+      ["memo", "메모", ["메모", "비고"]]],
+    required: ["txn_at"],
+    fp: (r) => ["bank", r.txn_at, r.deposit, r.withdrawal, r.description || ""].join("|"),
+    defAcct: (r) => Number(r.deposit) > 0 ? "108" : "251",
+    label: (r) => r.description || "", amount: (r) => Number(r.deposit) > 0 ? Number(r.deposit) : -Number(r.withdrawal),
+  },
+  card: { table: "card_transactions", title: "카드내역", dateCol: "approved_at", source: "card",
+    fields: [
+      ["approved_at", "승인일시", ["승인일시", "승인일자", "이용일시", "이용일자", "거래일시", "거래일자", "승인일", "이용일", "일자"]],
+      ["merchant", "가맹점", ["가맹점명", "이용가맹점", "가맹점", "이용처", "이용하신곳", "상호", "거래처"]],
+      ["amount", "승인금액", ["승인금액", "이용금액", "거래금액", "결제금액", "금액"]],
+      ["card_no", "카드번호", ["카드번호", "카드"]],
+      ["approval_no", "승인번호", ["승인번호"]],
+      ["is_cancel", "취소여부", ["취소여부", "승인구분", "거래구분", "취소", "상태"]],
+      ["memo", "메모", ["메모", "비고"]]],
+    required: ["approved_at", "amount"],
+    fp: (r) => ["card", r.approval_no || r.approved_at, r.amount, r.is_cancel ? "C" : "A", r.merchant || ""].join("|"),
+    defAcct: () => "811",
+    label: (r) => (r.merchant || "") + (r.is_cancel ? " (취소)" : ""), amount: (r) => r.is_cancel ? -Number(r.amount) : Number(r.amount),
+  },
+  tax: { table: "tax_invoices", title: "세금계산서", dateCol: "issue_date", source: "tax_invoice",
+    fields: [
+      ["issue_date", "작성일자", ["작성일자", "작성일", "발급일자", "발행일자", "전송일자"]],
+      ["invoice_no", "승인번호", ["승인번호", "국세청승인번호"]],
+      ["partner_biz_no", "상대 사업자번호", []],   // 방향에 따라 공급자/공급받는자 열을 고른다 (finDetect 참고)
+      ["partner_name", "상대 상호", []],
+      ["supply_amount", "공급가액", ["공급가액", "공급가"]],
+      ["tax_amount", "세액", ["세액", "부가세"]],
+      ["total_amount", "합계금액", ["합계금액", "총금액", "합계"]],
+      ["item_desc", "품목", ["품목명", "품목", "품명"]],
+      ["memo", "비고", ["비고"]]],
+    required: ["issue_date", "total_amount"],
+    fp: (r) => ["tax", r.invoice_no || [r.issue_date, r.partner_biz_no, r.total_amount].join("|")].join("|"),
+    defAcct: (r) => r.direction === "sale" ? "401" : "146",
+    label: (r) => `${r.partner_name || ""}${r.item_desc ? " · " + r.item_desc : ""}`, amount: (r) => Number(r.total_amount),
+  },
+};
+const FIN_STATUS = { new: ["신규", "bg-gray-100 text-gray-600"], matched: ["매칭", "bg-blue-50 text-blue-700"], posted: ["전기", "bg-green-50 text-green-700"], ignored: ["무시", "bg-gray-50 text-gray-400"] };
+const norm = (s) => String(s ?? "").replace(/\s+/g, "").toLowerCase();
+const digits = (s) => String(s ?? "").replace(/\D/g, "");
+const finNum = (v) => { if (typeof v === "number") return v; const n = Number(String(v ?? "").replace(/[^0-9.-]/g, "")); return isNaN(n) ? 0 : n; };
+// 날짜: Date 객체(cellDates), 엑셀 일련번호, "2026.10.01 10:00:00", "20261001", "2026-10-01" 을 모두 받는다. 반환은 "YYYY-MM-DD HH:MM:SS" 또는 null.
+const pad2 = (n) => String(n).padStart(2, "0");
+const kst = (v) => { if (!v) return ""; const d = new Date(v); return isNaN(d) ? String(v) : `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+function finDate(v) {
+  if (v instanceof Date && !isNaN(v)) return `${v.getFullYear()}-${pad2(v.getMonth() + 1)}-${pad2(v.getDate())} ${pad2(v.getHours())}:${pad2(v.getMinutes())}:${pad2(v.getSeconds())}`;
+  if (typeof v === "number" && v > 20000 && v < 80000) { const d = XLSX.SSF.parse_date_code(v); return `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")} ${String(d.H).padStart(2, "0")}:${String(d.M).padStart(2, "0")}:${String(Math.floor(d.S)).padStart(2, "0")}`; }
+  let s = String(v ?? "").trim(); if (!s) return null;
+  if (/^\d{8}(\d{6})?$/.test(s)) s = `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` + (s.length === 14 ? ` ${s.slice(8, 10)}:${s.slice(10, 12)}:${s.slice(12, 14)}` : "");
+  const m = s.match(/(\d{4})[.\-\/년]\s*(\d{1,2})[.\-\/월]\s*(\d{1,2})일?\s*(?:(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (!m) return null;
+  return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")} ${(m[4] || "0").padStart(2, "0")}:${m[5] || "00"}:${m[6] || "00"}`;
+}
+let fin = { kind: null, headers: [], rows: [], map: {}, dir: "purchase", profiles: [], partners: [], accts: [] };
+
+// 엑셀 → 헤더 행 찾기(키워드 2개 이상 맞는 첫 행) + 열 자동 인식
+function finDetect(headers) {
+  const cfg = FIN[fin.kind], map = {}, used = new Set();
+  const H = headers.map(norm);
+  const pick = (kws) => {
+    for (const kw of kws) { const k = norm(kw); let i = H.findIndex((x, idx) => x === k && !used.has(idx)); if (i < 0) i = H.findIndex((x, idx) => x.includes(k) && !used.has(idx)); if (i >= 0) return i; }
+    return -1;
+  };
+  for (const [key, , kws] of cfg.fields) {
+    let list = kws;
+    if (fin.kind === "tax" && key === "partner_biz_no") list = fin.dir === "purchase" ? ["공급자사업자등록번호", "공급자등록번호", "공급자사업자번호", "사업자등록번호", "사업자번호"] : ["공급받는자사업자등록번호", "공급받는자등록번호", "공급받는자사업자번호", "사업자등록번호", "사업자번호"];
+    if (fin.kind === "tax" && key === "partner_name") list = fin.dir === "purchase" ? ["공급자상호", "공급자 상호", "공급자명", "상호", "거래처"] : ["공급받는자상호", "공급받는자 상호", "공급받는자명", "상호", "거래처"];
+    const i = pick(list); if (i >= 0) { map[key] = i; used.add(i); }
+  }
+  return map;
+}
+function finRow(raw) {
+  const cfg = FIN[fin.kind], r = {};
+  for (const [key] of cfg.fields) { const i = fin.map[key]; r[key] = i === undefined || i === "" ? "" : raw[i]; }
+  const ts = (v) => { const d = finDate(v); return d ? d + "+09:00" : null; };   // 한국 시간으로 고정 저장
+  if (fin.kind === "bank") { r.txn_at = ts(r.txn_at); r.deposit = Math.abs(finNum(r.deposit)); r.withdrawal = Math.abs(finNum(r.withdrawal)); r.balance = r.balance === "" ? null : finNum(r.balance); r.description = String(r.description ?? "").trim() || null; r.memo = String(r.memo ?? "").trim() || null; }
+  if (fin.kind === "card") { r.approved_at = ts(r.approved_at); const amt = finNum(r.amount); r.is_cancel = /취소/.test(String(r.is_cancel ?? "")) || amt < 0; r.amount = Math.abs(amt); r.merchant = String(r.merchant ?? "").trim() || null; r.card_no = String(r.card_no ?? "").trim() || null; r.approval_no = String(r.approval_no ?? "").trim() || null; r.memo = String(r.memo ?? "").trim() || null; }
+  if (fin.kind === "tax") { r.issue_date = (finDate(r.issue_date) || "").slice(0, 10) || null; r.direction = fin.dir; r.invoice_no = String(r.invoice_no ?? "").trim() || null; r.partner_biz_no = digits(r.partner_biz_no) || null; r.partner_name = String(r.partner_name ?? "").trim() || null; r.supply_amount = finNum(r.supply_amount); r.tax_amount = finNum(r.tax_amount); r.total_amount = finNum(r.total_amount) || r.supply_amount + r.tax_amount; r.item_desc = String(r.item_desc ?? "").trim() || null; r.memo = String(r.memo ?? "").trim() || null; }
+  return r;
+}
+const finValid = (r) => FIN[fin.kind].required.every(k => r[k] !== null && r[k] !== "" && r[k] !== undefined) && !(fin.kind === "bank" && !r.deposit && !r.withdrawal);
+
+async function vFin(kind) {
+  if (fin.kind !== kind) fin = { kind, headers: [], rows: [], map: {}, dir: "purchase", profiles: [], partners: [], accts: [] };
+  const cfg = FIN[kind];
+  const month = qs().get("m") || monthKey(0), st = qs().get("st") || "";
+  const y = Number(month.slice(0, 4)), mo = Number(month.slice(5, 7));
+  const tz = kind === "tax" ? "" : "T00:00:00+09:00";
+  const from = month + "-01" + tz, to = `${mo === 12 ? y + 1 : y}-${pad2(mo === 12 ? 1 : mo + 1)}-01` + tz;
+  let q = sb.from(cfg.table).select("*").gte(cfg.dateCol, from).lt(cfg.dateCol, to).order(cfg.dateCol, { ascending: false }).limit(500);
+  if (st) q = q.eq("status", st);
+  const [list, profiles, partners, accts, counts] = await Promise.all([
+    q, sb.from("import_profiles").select("id,name,column_map").eq("kind", kind).order("name"),
+    sb.from("partners").select("id,partner_code,name,biz_no").eq("is_active", true).order("name"),
+    sb.from("accounts").select("code,name").eq("is_active", true).order("code"),
+    sb.from(cfg.table).select("status").gte(cfg.dateCol, from).lt(cfg.dateCol, to),
+  ]);
+  if (list.error) throw list.error;
+  fin.profiles = profiles.data || []; fin.partners = partners.data || []; fin.accts = accts.data || []; fin.list = list.data || [];
+  const cnt = {}; (counts.data || []).forEach(r => cnt[r.status] = (cnt[r.status] || 0) + 1);
+  const months = [0, 1, 2, 3, 4, 5].map(monthKey);
+  h(`${card(`${cfg.title} 엑셀 업로드`, `
+    <p class="mb-3 text-xs text-gray-500">${kind === "bank" ? "인터넷뱅킹 → 거래내역조회 → 엑셀 저장 파일을 그대로 올리세요." : kind === "card" ? "카드사 홈페이지 → 이용내역 → 엑셀 저장 파일을 그대로 올리세요." : "홈택스 → 전자세금계산서 목록조회 → 엑셀 내려받기 파일을 올리세요. 매입/매출을 먼저 고르세요."}
+      열 이름은 자동으로 알아보고, 못 알아본 열만 직접 지정하면 됩니다. 같은 파일을 다시 올려도 중복은 들어가지 않습니다.</p>
+    <div class="flex flex-wrap items-end gap-2">
+      ${kind === "tax" ? sel("fin_dir", "구분", [["purchase", "매입 (내가 받은 계산서)"], ["sale", "매출 (내가 발행한 계산서)"]], "w-56", fin.dir) : ""}
+      ${sel("fin_profile", "저장된 양식", [["", "(자동 인식)"], ...fin.profiles.map(p => [p.id, p.name])], "w-48")}
+      ${btn("finPick()", "엑셀 업로드")}
+      ${btn("finTemplate()", "입력 양식 받기", "border border-gray-400 hover:bg-gray-50")}
+      <span class="text-xs text-gray-400">양식을 받아 값만 채워 올려도 됩니다.</span>
+    </div>
+    <div id="finMap" class="mt-4"></div>`)}
+  ${card(`${cfg.title} 목록`, `
+    <div class="mb-3 flex flex-wrap items-end gap-2">
+      ${sel("fin_m", "월", months.map(m => [m, m]), "w-32", month)}
+      ${sel("fin_st", "상태", [["", "전체"], ...Object.entries(FIN_STATUS).map(([k, [l]]) => [k, `${l} (${cnt[k] || 0})`])], "w-36", st)}
+      ${btn(`goto('fin-${kind}', { m: val('fin_m'), st: val('fin_st') })`, "조회", "border border-gray-400 hover:bg-gray-50")}
+      <span class="ml-auto text-xs text-gray-500">${(list.data || []).length}건</span>
+      ${btn("finExport()", "엑셀 내보내기", "border border-gray-400 hover:bg-gray-50")}
+      ${btn("finPostSelected()", "선택 행 전표 생성")}
+    </div>
+    ${finTable(list.data || [])}`)}`);
+}
+function finTable(rows) {
+  const cfg = FIN[fin.kind];
+  if (!rows.length) return empty("이 달에 적재된 내역이 없습니다.");
+  const pOpt = (cur) => `<option value="">(거래처 없음)</option>` + fin.partners.map(p => `<option value="${p.id}" ${p.id === cur ? "selected" : ""}>${esc(p.name)}</option>`).join("");
+  const aOpt = (cur) => fin.accts.map(a => `<option value="${a.code}" ${a.code === cur ? "selected" : ""}>${a.code} ${esc(a.name)}</option>`).join("");
+  return tbl(["", "일자", "내용", "금액", "거래처", "상대 계정", "상태", ""], rows.map(r => {
+    const posted = r.status === "posted", ig = r.status === "ignored";
+    const [sl, sc] = FIN_STATUS[r.status] || ["", ""];
+    const amt = cfg.amount(r);
+    const d = fin.kind === "tax" ? r.issue_date : kst(r[cfg.dateCol]);
+    return [
+      posted || ig ? "" : `<input type="checkbox" class="finChk" value="${r.id}">`,
+      d, esc(cfg.label(r)) + (fin.kind === "tax" ? `<div class="text-[11px] text-gray-400">${esc(r.partner_biz_no || "")} ${r.direction === "sale" ? "매출" : "매입"}</div>` : ""),
+      `<span class="${amt < 0 ? "text-red-600" : ""}">${won(amt)}</span>`,
+      posted ? esc(fin.partners.find(p => p.id === r.partner_id)?.name || "") : `<select onchange="finSetPartner('${r.id}', this.value)" class="inp w-40">${pOpt(r.partner_id)}</select>`,
+      posted ? "" : `<select id="acct_${r.id}" class="inp w-44">${aOpt(cfg.defAcct(r))}</select>`,
+      `<span class="rounded px-2 py-0.5 text-xs ${sc}">${sl}</span>`,
+      posted ? `<a href="#/journal" class="text-xs text-indigo-600 hover:underline">전표 보기</a>`
+        : `<div class="flex gap-2 text-xs">${ig ? "" : `<button onclick="finPost('${r.id}')" class="text-indigo-600 hover:underline">전표</button>`}
+             <button onclick="finIgnore('${r.id}', ${ig})" class="text-gray-500 hover:underline">${ig ? "복원" : "무시"}</button></div>`];
+  }), [3]);
+}
+// 입력 양식: 자동 인식되는 열 이름 + 예시 1행. 값만 채워 올리면 된다.
+const FIN_TEMPLATE = {
+  bank: { sheet: "은행거래", row: { 거래일시: "2026-10-01 09:12", 적요: "한빛유통 입금", 입금액: 1100000, 출금액: 0, 잔액: 5100000, 메모: "" } },
+  card: { sheet: "카드내역", row: { 승인일시: "2026-10-02 12:10", 가맹점명: "스타벅스", 승인금액: 5500, 승인번호: "30112233", 승인구분: "승인", 카드번호: "9410-****-****-1234", 메모: "" } },
+  tax: { sheet: "세금계산서", row: { 작성일자: "2026-10-01", 승인번호: "20261001-41000000-12345678", 사업자등록번호: "123-45-67890", 상호: "한빛유통", 공급가액: 1000000, 세액: 100000, 합계금액: 1100000, 품목명: "노트북 거치대", 비고: "" } },
+};
+function finTemplate() {
+  const t = FIN_TEMPLATE[fin.kind];
+  xlSave([t.row], t.sheet, `${t.sheet}_입력양식.xlsx`);
+}
+function finExport() {
+  const cfg = FIN[fin.kind], rows = fin.list || [];
+  if (!rows.length) return toast("내보낼 내역이 없습니다", true);
+  const pname = (id) => fin.partners.find(p => p.id === id)?.name || "";
+  const st = (s) => FIN_STATUS[s]?.[0] || s;
+  const out = rows.map(r => fin.kind === "bank" ? { 거래일시: kst(r.txn_at), 적요: r.description || "", 입금액: Number(r.deposit), 출금액: Number(r.withdrawal), 잔액: r.balance == null ? "" : Number(r.balance), 거래처: pname(r.partner_id), 상태: st(r.status), 메모: r.memo || "" }
+    : fin.kind === "card" ? { 승인일시: kst(r.approved_at), 가맹점명: r.merchant || "", 승인금액: Number(r.amount), 승인번호: r.approval_no || "", 승인구분: r.is_cancel ? "취소" : "승인", 카드번호: r.card_no || "", 거래처: pname(r.partner_id), 상태: st(r.status), 메모: r.memo || "" }
+    : { 구분: r.direction === "sale" ? "매출" : "매입", 작성일자: r.issue_date, 승인번호: r.invoice_no || "", 사업자등록번호: r.partner_biz_no || "", 상호: r.partner_name || "", 공급가액: Number(r.supply_amount), 세액: Number(r.tax_amount), 합계금액: Number(r.total_amount), 품목명: r.item_desc || "", 거래처: pname(r.partner_id), 상태: st(r.status), 비고: r.memo || "" });
+  xlSave(out, cfg.title, `${cfg.title}_${val("fin_m") || today().slice(0, 7)}.xlsx`);
+  toast(`${out.length}건 내보냈습니다`);
+}
+function finPick() {
+  fin.dir = val("fin_dir") || fin.dir;
+  const inp = $("xlFile"); inp.value = "";
+  inp.onchange = () => { if (inp.files[0]) finLoad(inp.files[0]); };
+  inp.click();
+}
+async function finLoad(file) {
+  const cfg = FIN[fin.kind];
+  let aoa;
+  try {
+    const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+    aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: true });
+  } catch (e) { return toast("파일을 읽지 못했습니다: " + e.message, true); }
+  // 헤더 행: 키워드가 2개 이상 맞는 첫 행 (홈택스·은행 파일은 위에 제목 행이 있다)
+  const allKw = cfg.fields.flatMap(f => f[2]).concat(["사업자등록번호", "상호", "공급자", "공급받는자"]).map(norm);
+  let hi = aoa.findIndex(row => row.filter(c => c !== "").length >= 3 && row.filter(c => allKw.some(k => norm(c).includes(k))).length >= 2);
+  if (hi < 0) hi = 0;
+  fin.headers = aoa[hi].map(c => String(c).trim());
+  fin.rows = aoa.slice(hi + 1).filter(r => r.some(c => c !== ""));
+  const pid = val("fin_profile");
+  const saved = fin.profiles.find(p => p.id === pid);
+  fin.map = saved ? Object.fromEntries(Object.entries(saved.column_map).map(([k, name]) => [k, fin.headers.indexOf(name)]).filter(([, i]) => i >= 0)) : finDetect(fin.headers);
+  renderFinMap();
+}
+function renderFinMap() {
+  const cfg = FIN[fin.kind];
+  const colOpt = (cur) => `<option value="">(없음)</option>` + fin.headers.map((hd, i) => `<option value="${i}" ${cur === i ? "selected" : ""}>${esc(hd || "(빈 제목) " + (i + 1))}</option>`).join("");
+  const parsed = fin.rows.map(finRow), ok = parsed.filter(finValid).length;
+  const prev = parsed.slice(0, 5);
+  $("finMap").innerHTML = `
+    <div class="grid gap-2 md:grid-cols-3">${cfg.fields.map(([key, label]) => `<div><label class="mb-1 block text-xs ${cfg.required.includes(key) ? "font-semibold text-gray-800" : "text-gray-500"}">${label}${cfg.required.includes(key) ? " *" : ""}</label>
+      <select onchange="fin.map['${key}'] = this.value === '' ? '' : Number(this.value); renderFinMap()" class="inp w-full">${colOpt(fin.map[key])}</select></div>`).join("")}</div>
+    <p class="mt-3 text-xs text-gray-500">미리보기 (전체 ${fin.rows.length}행 중 유효 ${ok}행)</p>
+    ${tbl(cfg.fields.map(f => f[1]), prev.map(r => cfg.fields.map(([k]) => esc(k === "is_cancel" ? (r[k] ? "취소" : "") : (r[k] ?? "")))))}
+    <div class="mt-3 flex flex-wrap items-center gap-2">
+      ${btn("finImport()", `${ok}행 적재`)}
+      <input id="fin_pname" placeholder="양식 이름 (예: 기업은행)" class="inp w-44">
+      ${btn("finSaveProfile()", "이 열 설정을 양식으로 저장", "border border-gray-400 hover:bg-gray-50")}
+    </div>`;
+}
+async function finSaveProfile() {
+  const name = val("fin_pname").trim(); if (!name) return toast("양식 이름을 입력하세요", true);
+  const column_map = Object.fromEntries(Object.entries(fin.map).filter(([, i]) => i !== "" && i !== undefined).map(([k, i]) => [k, fin.headers[i]]));
+  const { error } = await sb.from("import_profiles").upsert({ company_id: state.companyId, kind: fin.kind, name, column_map }, { onConflict: "company_id,kind,name" });
+  if (error) return toast(error.message, true);
+  toast("양식을 저장했습니다");
+}
+async function finImport() {
+  const cfg = FIN[fin.kind];
+  const rows = fin.rows.map(finRow).filter(finValid);
+  if (!rows.length) return toast("적재할 유효한 행이 없습니다", true);
+  // 거래처 자동 매칭: 세금계산서는 사업자번호 일치, 은행·카드는 적요/가맹점에 거래처명 포함
+  const byBiz = new Map(fin.partners.filter(p => p.biz_no).map(p => [digits(p.biz_no), p.id]));
+  const names = fin.partners.filter(p => p.name && p.name.length >= 2);
+  const seen = new Set();
+  const payload = [];
+  for (const r of rows) {
+    const fp = cfg.fp(r); if (seen.has(fp)) continue; seen.add(fp);
+    let partner_id = null;
+    if (fin.kind === "tax") partner_id = byBiz.get(r.partner_biz_no) || null;
+    else { const text = cfg.label(r); const hit = names.find(p => text.includes(p.name)); partner_id = hit ? hit.id : null; }
+    payload.push({ company_id: state.companyId, profile_id: val("fin_profile") || null, ...r, fingerprint: fp, partner_id, status: partner_id ? "matched" : "new" });
+  }
+  // 이미 있는 fingerprint 는 제외 (unique 제약도 있지만 건수를 보고하기 위해 미리 거른다). 기간으로 좁혀 조회한다.
+  const dates = payload.map(p => String(p[cfg.dateCol])).sort();
+  const { data: existing } = await sb.from(cfg.table).select("fingerprint").gte(cfg.dateCol, dates[0].slice(0, 10)).lte(cfg.dateCol, dates[dates.length - 1].slice(0, 10) + (fin.kind === "tax" ? "" : "T23:59:59+09:00"));
+  const have = new Set((existing || []).map(e => e.fingerprint));
+  const fresh = payload.filter(p => !have.has(p.fingerprint));
+  const dup = payload.length - fresh.length;
+  if (!fresh.length) return toast(`새로 들어갈 내역이 없습니다 (중복 ${dup}건)`, true);
+  const { error } = await sb.from(cfg.table).insert(fresh);
+  if (error) return toast(error.message, true);
+  toast(`${fresh.length}건 적재${dup ? `, 중복 ${dup}건 건너뜀` : ""}, 거래처 자동 매칭 ${fresh.filter(p => p.partner_id).length}건`);
+  const first = fresh.map(p => String(p[cfg.dateCol])).sort().pop();
+  goto("fin-" + fin.kind, { m: first.slice(0, 7) });
+}
+async function finSetPartner(id, pid) {
+  const { error } = await sb.from(FIN[fin.kind].table).update({ partner_id: pid || null, status: pid ? "matched" : "new" }).eq("id", id);
+  if (error) return toast(error.message, true);
+  toast(pid ? "거래처를 연결했습니다" : "거래처 연결을 해제했습니다");
+}
+async function finIgnore(id, restore) {
+  const { error } = await sb.from(FIN[fin.kind].table).update({ status: restore ? "new" : "ignored" }).eq("id", id);
+  if (error) return toast(error.message, true);
+  route();
+}
+async function finPost(id) {
+  const { error } = await sb.rpc("post_fin_entry", { p_kind: fin.kind, p_id: id, p_account: val("acct_" + id) });
+  if (error) return toast(error.message, true);
+  toast("전표를 생성했습니다"); route();
+}
+async function finPostSelected() {
+  const ids = [...document.querySelectorAll(".finChk:checked")].map(c => c.value);
+  if (!ids.length) return toast("전표를 만들 행을 선택하세요", true);
+  if (!confirm(`${ids.length}건의 전표를 생성할까요?`)) return;
+  let ok = 0, fail = [];
+  for (const id of ids) {
+    const { error } = await sb.rpc("post_fin_entry", { p_kind: fin.kind, p_id: id, p_account: val("acct_" + id) });
+    if (error) fail.push(error.message); else ok++;
+  }
+  toast(`전표 ${ok}건 생성${fail.length ? `, 실패 ${fail.length}건: ${fail[0]}` : ""}`, fail.length > 0);
+  route();
+}
+
 /* ===== 그룹웨어 ===== */
-const AP_LABEL = { pending: "진행중", approved: "승인", rejected: "반려" };
+const AP_LABEL ={ pending: "진행중", approved: "승인", rejected: "반려" };
 const AP_STYLE = { pending: "bg-amber-50 text-amber-700", approved: "bg-green-50 text-green-700", rejected: "bg-red-50 text-red-500" };
 async function vApprovals() {
   const [aps, members, ds, dp] = await Promise.all([

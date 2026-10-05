@@ -66,12 +66,18 @@ async function tryAutoLogin() {
 // 5) boot: 세션이 없으면 로그인 화면 대신 자동 로그인을 먼저 시도
 step = "boot-autologin";
 replaceOnce(`  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return show("loginView");
+  if (!user) { show("loginView"); if (await fillSavedLogin()) await doLogin(); return; }
   state.user = user;`,
 `  let { data: { user } } = await sb.auth.getUser();
   if (!user && await tryAutoLogin()) ({ data: { user } } = await sb.auth.getUser());
   if (!user) return show("loginView");
   state.user = user;`);
+
+// 5b) 웹 전용 '브라우저에 저장' 체크박스 제거 + 로그인 버튼은 doLogin 직결 (데스크톱은 OS 키체인이 기억한다)
+step = "web-remember-strip";
+replaceOnce(/<label id="rememberBox"[\s\S]*?<\/label>\n/.exec(html)?.[0] ?? "<label id=\"rememberBox\">", "");
+replaceOnce('<button onclick="webLogin()"', '<button onclick="doLogin()"');
+replaceOnce('if (e.key === "Enter" && !$("loginView").classList.contains("hidden")) webLogin();', 'if (e.key === "Enter" && !$("loginView").classList.contains("hidden")) doLogin();');
 
 // 6) 남은 참조 검사
 step = "leftover-check";
