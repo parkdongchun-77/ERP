@@ -71,8 +71,18 @@ Phase 순서는 데이터 의존 관계를 따른다. 기반 → 기준정보 �
 ### Phase 10~13 — 외부 연동 (MVP 안정 후)
 - 10 전자세금계산서: 팝빌 API, tax_invoices, 발행/수정발행. 사전 준비 = 팝빌 계정.
 - 11 홈택스 매입 수집: collected_tax_invoices, 구매 전표 매칭. 사전 준비 = 팝빌 홈택스 서비스.
+  → 2026-10-05 재정의: **금융·세무 데이터 엑셀 반자동 수집** (아래 Phase 11 절)
 - 12 POS: 판매 기록형(카드 승인 없음), PaymentProvider 인터페이스 분리. 기존 sales 재사용.
 - 13 쇼핑몰: 스마트스토어 커머스API 우선, MallAdapter 패턴, mall_orders → sales_orders.
+
+### Phase 11 — 금융·세무 데이터 수집 (엑셀 반자동, 2026-10-05 착수)
+- 목표: 은행 입출금·카드 승인·홈택스 세금계산서를 각 사이트의 엑셀 내려받기 파일로 ERP에 적재하고, 거래처 매칭과 전표 생성까지 화면에서 처리한다. 완전 자동(CODEF)은 가입 심사 후 같은 테이블에 적재하는 방식으로 교체 가능하도록 설계한다.
+- 왜 엑셀인가: 오픈뱅킹·마이데이터는 사업자 라이선스가 필요해 불가. CODEF는 가능하나 가입 심사·건당 과금이 있어 사용자가 반자동을 먼저 선택.
+- 핵심 테이블: import_profiles(원천별 열 매핑 저장), bank_transactions, card_transactions, tax_invoices(매입/매출 구분). 각 행은 fingerprint(sha 대용 텍스트 키) unique 로 재업로드 중복 차단.
+- 핵심 화면(HTML ERP): 금융수집 › 은행거래 / 카드내역 / 세금계산서. 엑셀 업로드 → 헤더 키워드로 열 자동 인식(실패 시 수동 매핑, 프로필로 저장) → 미리보기 → 적재(신규/중복 건수) → 목록(상태 new/matched/posted/ignored) → 거래처 매칭(상호 포함 검색·사업자번호 일치) → 전표 생성(계정 선택, create_journal_entry 재사용, source_type = bank|card|tax_invoice).
+- 전표 규칙: 은행 입금 = 차변 현금성(cash_account 매핑) / 대변 선택 계정. 출금 = 반대. 카드 = 차변 선택 비용 / 대변 미지급금(251 기본). 세금계산서 매입 = 차변 선택계정+부가세(135) / 대변 미지급금(251). 매출 = 차변 외상매출금(108) / 대변 매출(401)+부가세(255). journal_account_map 의 기존 키를 재사용하고 신규 키 card_payable, bank_default_in, bank_default_out 추가.
+- 의존: Phase 2 (partners), Phase 6 (create_journal_entry, journal_account_map)
+- 범위 외: 자동 수집(CODEF) 연동, 카드 매출(여신금융협회) 수집, 은행 잔액과 장부 현금 대사(후속).
 
 ## ERD 초안 (주요 테이블)
 

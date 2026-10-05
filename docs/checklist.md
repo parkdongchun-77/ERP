@@ -85,6 +85,16 @@
 
 ## Phase 10~13 — 외부 연동 (사전 준비 확보 후 착수)
 - [ ] 10 전자세금계산서: 팝빌 테스트베드 키 확보 → 발행/실패/재시도/수정발행 테스트
-- [ ] 11 홈택스 수집: 서비스 신청 → 중복 0건/매칭/전표 생성 정합성 테스트
+- [ ] 11 홈택스 수집: 서비스 신청 → 중복 0건/매칭/전표 생성 정합성 테스트 → 아래 Phase 11 절로 대체
 - [ ] 12 POS: 판매 집계 동일성/혼합 결제/마감 정산 테스트
 - [ ] 13 쇼핑몰: 스마트스토어 키 확보 → 수집 중복 방지/보류 처리/발송 통보 재시도 테스트
+
+## Phase 11 — 금융·세무 데이터 수집 (엑셀 반자동)
+- [ ] 마이그레이션: import_profiles / bank_transactions / card_transactions / tax_invoices + fingerprint unique + RLS(is_member 조회, is_admin 변경) → verify: 같은 fingerprint 2회 insert 시 2번째 거부, 타 회사 0건
+- [ ] RPC post_fin_entry(kind, id, account_code): 전표 생성 + 원본 행 status=posted/journal_entry_id 기록 → verify: 차대 균형, 재호출 시 '이미 전기' 오류
+- [ ] 열 자동 인식: 헤더 키워드 사전(거래일/입금/출금/잔액/적요, 승인일/가맹점/승인금액/승인번호, 작성일자/공급가액/세액/승인번호/상호/사업자번호) → verify: 샘플 엑셀 3종 자동 매핑 성공, 미인식 열 수동 지정 후 프로필 저장·재사용
+- [ ] 적재: 미리보기 → 신규/중복 건수 보고 → verify: 같은 파일 재업로드 시 신규 0
+- [ ] 거래처 매칭: 상호 포함 검색 + 세금계산서는 사업자번호 일치 자동 → verify: 매칭 후 status=matched
+- [ ] 전표 생성 UI: 계정 선택 → post_fin_entry → verify: 전표 목록에 출처 '은행/카드/세금계산서' 표시, 시산표 균형
+- [ ] 자동분개 설정에 card_payable / bank_default_in / bank_default_out 키 추가 → verify: 설정 화면 노출
+- [ ] 배포: VPS /srv/erp-app, 데스크톱 renderer 재빌드 + smoke-test 통과, 커밋
