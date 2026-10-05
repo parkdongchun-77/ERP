@@ -85,3 +85,11 @@
 - 전표 생성은 기존 create_journal_entry 를 SQL 함수 post_fin_entry 에서 호출(원본 행 status 갱신과 같은 트랜잭션). source_type 은 자유 텍스트라 bank/card/tax_invoice 사용.
 - 세금계산서 수집은 홈택스 전자세금계산서 목록조회 → 엑셀 양식 기준. 매입/매출은 업로드 시 사용자가 지정(홈택스 파일 자체엔 방향 열이 없음).
 - 데스크톱 앱은 같은 index.html 을 쓰므로 별도 작업 없음(build-renderer 재실행만).
+
+## 2026-10-05 (Phase 12 서비스·계정 금고·도메인)
+
+- 요구: "내 도메인들도 추가, 로그인 기능도 추가, 여기서 다 확인 — 통합 ERP". 확인 결과 '로그인 기능' = 서비스별 아이디·비밀번호 금고. 도메인은 Cloudflare 자동 조회 선택.
+- 금고 설계: pgcrypto `pgp_sym_encrypt(password, current_setting('app.vault_key'))`. 키는 `alter database postgres set app.vault_key = '…'` 로 DB 롤 설정에만 두고 `/root/erp_vault.key` 에 사본. pg_dump 에는 안 들어가고(ALTER DATABASE SET 은 pg_dumpall 영역) 백업은 어차피 GPG. 키를 잃으면 금고 내용은 복구 불가 — 인수인계 문서에 기록.
+- 브라우저는 비밀번호를 vault_get RPC 로 클릭 시에만 받는다. 목록 조회는 secret 컬럼을 select 하지 않는 뷰(vault_list) 를 쓴다.
+- Cloudflare 토큰은 Claude 가 아니라 사용자가 ERP 설정 화면에 직접 입력한다(자격증명 입력은 사용자 몫). cron 이 DB 에서 복호화해 쓰므로 토큰이 브라우저로 돌아 나오지 않도록 vault_get 은 label='cloudflare_api_token' 행을 거부한다.
+- services 는 자유 서식 메모가 많아 핵심 열만 고정하고 나머지는 notes 로.

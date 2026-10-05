@@ -84,6 +84,15 @@ Phase 순서는 데이터 의존 관계를 따른다. 기반 → 기준정보 �
 - 의존: Phase 2 (partners), Phase 6 (create_journal_entry, journal_account_map)
 - 범위 외: 자동 수집(CODEF) 연동, 카드 매출(여신금융협회) 수집, 은행 잔액과 장부 현금 대사(후속).
 
+### Phase 12 — 서비스·계정 금고·도메인 (통합 ERP, 2026-10-05 착수)
+- 목표: 사용자가 운영하는 서비스(emoi·massa·KBizV·VIBI·모아학원)의 도메인·관리 계정·카카오 앱 ID·DB 위치를 한 화면에서 보고, 각 사이트의 로그인 정보를 암호화 금고에 두며, Cloudflare 에서 도메인 만료일·DNS 를 자동으로 가져온다.
+- 핵심 테이블: services(서비스 대장), vault_accounts(계정 금고 — secret 은 pgcrypto pgp_sym_encrypt 로 bytea 저장, 키는 `alter database set app.vault_key`), domains(Cloudflare 동기화 결과: zone·status·expires_at·name_servers·dns jsonb·synced_at).
+- RPC: vault_put(id, service_id, label, site_url, login_id, password, notes) / vault_get(id) → 복호화 비밀번호. 둘 다 is_admin 필수. 화면은 가려 두고 클릭 시에만 vault_get 호출.
+- Cloudflare: 토큰은 사용자가 ERP 설정 화면에 직접 입력 → 금고(label='cloudflare_api_token')에 저장. VPS cron `/root/_cf_sync.sh` 가 매일 psql 로 복호화해 zones·registrar/domains·dns_records 를 조회하고 domains 에 upsert. HTML 은 DB 만 읽는다(토큰이 브라우저로 안 나감).
+- 화면: 서비스 › 서비스 관리 / 계정 금고 / 도메인. 설정 › 연동(Cloudflare 토큰).
+- 의존: Phase 1 (is_admin), pgcrypto extension.
+- 범위 외: 타 등록처(가비아 등) 연동, 2FA 코드 저장, 금고 키 교체 절차(후속 문서화).
+
 ## ERD 초안 (주요 테이블)
 
 모든 업무 테이블은 company_id를 갖는다(다이어그램에는 대표적으로 표기).

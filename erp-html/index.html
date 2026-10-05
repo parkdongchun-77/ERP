@@ -106,7 +106,8 @@ const MENU = [
   { group: "생산", items: [["bom", "BOM"], ["work-orders", "작업지시"], ["mrp", "소요량(MRP)"]] },
   { group: "인사", items: [["payroll", "급여"], ["attendance", "근태·연차"]] },
   { group: "그룹웨어", items: [["approvals", "전자결재"], ["board", "게시판"], ["calendar", "일정"]] },
-  { group: "설정", items: [["company", "회사 정보"]] },
+  { group: "서비스", items: [["services", "서비스 관리"], ["vault", "계정 금고"], ["domains", "도메인"]] },
+  { group: "설정", items: [["company", "회사 정보"], ["integrations", "연동"]] },
 ];
 
 let state = { user: null, companyId: null, companyName: "", role: "", company: {} };
@@ -208,7 +209,8 @@ const VIEWS = {
   bom: vBom, "work-orders": vWorkOrders, mrp: vMrp,
   payroll: vPayroll, "payroll-detail": vPayrollDetail, attendance: vAttendance,
   approvals: vApprovals, board: vBoard, calendar: vCalendar,
-  company: vCompany,
+  company: vCompany, integrations: vIntegrations,
+  services: vServices, vault: vVault, domains: vDomains,
 };
 window.addEventListener("hashchange", route);
 function route() {
@@ -1706,6 +1708,167 @@ async function saveCompany() {
   if (error) return toast(error.message, true);
   await loadCompany();
   toast("저장되었습니다");
+}
+
+/* ===== 서비스 관리 (운영 중인 서비스 대장) ===== */
+const SVC_FIELDS = [
+  ["name", "서비스명 *"], ["domain", "도메인"], ["registrar", "도메인 등록처"], ["admin_email", "관리자 계정"],
+  ["service_email", "서비스 메일"], ["apple_id", "애플 ID"], ["kakao_account", "카카오 계정"], ["kakao_app_id", "카카오 앱 ID"],
+  ["kakao_channel", "카카오톡 채널"], ["social_logins", "소셜 로그인"], ["db_location", "DB 위치"], ["test_accounts", "테스트 계정"],
+];
+let svcEdit = null;   // 편집 중인 서비스 id ("new" = 신규)
+async function vServices() {
+  const [svc, vl, dom] = await Promise.all([
+    sb.from("services").select("*").order("sort").order("name"),
+    sb.from("vault_list").select("id,service_id,label,login_id,site_url,has_secret"),
+    sb.from("domains").select("name,expires_at,status"),
+  ]);
+  if (svc.error) throw svc.error;
+  const rows = svc.data || [], accts = vl.data || [], doms = new Map((dom.data || []).map(d => [d.name, d]));
+  const cell = (v) => v ? esc(v) : `<span class="text-gray-300">—</span>`;
+  const form = (s) => `<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      ${SVC_FIELDS.map(([k, l]) => fld("sv_" + k, l, "w-full", "text", esc(s[k] || ""))).join("")}
+      <div class="sm:col-span-2 lg:col-span-3"><label class="mb-1 block text-xs text-gray-500">메모</label><textarea id="sv_notes" rows="3" class="inp w-full">${esc(s.notes || "")}</textarea></div>
+    </div>
+    <div class="mt-3 flex gap-2">${btn(`saveService('${s.id || ""}')`, "저장")}${btn("svcEdit=null; route()", "취소", "border border-gray-400 hover:bg-gray-50")}</div>`;
+  h(`<div class="flex items-center justify-between"><h1 class="text-lg font-bold">서비스 관리</h1>${btn("svcEdit='new'; route()", "+ 서비스 추가")}</div>
+    ${svcEdit === "new" ? card("새 서비스", form({})) : ""}
+    ${rows.length ? rows.map(s => {
+      if (svcEdit === s.id) return card(esc(s.name), form(s));
+      const d = s.domain ? doms.get(s.domain) : null;
+      const my = accts.filter(a => a.service_id === s.id);
+      return card(`${esc(s.name)} ${s.domain ? `<a href="https://${esc(s.domain)}" target="_blank" rel="noopener" class="ml-2 text-xs font-normal text-indigo-600 hover:underline">${esc(s.domain)} ↗</a>` : ""}
+          ${d?.expires_at ? `<span class="ml-2 rounded bg-gray-100 px-2 py-0.5 text-[11px] font-normal text-gray-600">만료 ${d.expires_at}</span>` : ""}`,
+        `<div class="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+          ${SVC_FIELDS.slice(2).map(([k, l]) => `<div><span class="block text-[11px] text-gray-400">${l}</span>${cell(s[k])}</div>`).join("")}
+          ${s.notes ? `<div class="sm:col-span-2 lg:col-span-3"><span class="block text-[11px] text-gray-400">메모</span><span class="whitespace-pre-line">${esc(s.notes)}</span></div>` : ""}
+         </div>
+         <div class="mt-3 flex flex-wrap items-center gap-3 border-t pt-3 text-xs">
+          <span class="text-gray-500">저장된 계정 ${my.length}개${my.length ? ": " + my.map(a => esc(a.label)).join(", ") : ""}</span>
+          <a href="#/vault?svc=${s.id}" class="text-indigo-600 hover:underline">계정 금고 →</a>
+          <span class="ml-auto"></span>
+          <button onclick="svcEdit='${s.id}'; route()" class="text-indigo-600 hover:underline">수정</button>
+          <button onclick="delRow('services','${s.id}','${esc(s.name)} 서비스를 삭제할까요? (금고의 계정은 서비스 연결만 끊깁니다)')" class="text-red-500 hover:underline">삭제</button>
+         </div>`);
+    }).join("") : card("서비스", empty("등록된 서비스가 없습니다."))}`);
+}
+async function saveService(id) {
+  const row = Object.fromEntries(SVC_FIELDS.map(([k]) => [k, val("sv_" + k).trim() || null]));
+  row.notes = val("sv_notes").trim() || null;
+  if (!row.name) return toast("서비스명은 필수입니다", true);
+  const q = id ? sb.from("services").update(row).eq("id", id) : sb.from("services").insert({ company_id: state.companyId, ...row });
+  const { error } = await q;
+  if (error) return toast(error.message, true);
+  svcEdit = null; toast("저장되었습니다"); route();
+}
+
+/* ===== 계정 금고 ===== */
+// 비밀번호는 DB 에 암호화(pgcrypto)되어 있고, '보기'를 누를 때만 vault_get 으로 받아온다. 목록은 secret 이 없는 vault_list 뷰.
+let vaultEdit = null;
+async function vVault() {
+  const svcFilter = qs().get("svc") || "";
+  const [vl, svc] = await Promise.all([
+    sb.from("vault_list").select("*").neq("label", "cloudflare_api_token").order("updated_at", { ascending: false }),
+    sb.from("services").select("id,name").order("sort").order("name"),
+  ]);
+  if (vl.error) throw vl.error;
+  const services = svc.data || [], sname = new Map(services.map(s => [s.id, s.name]));
+  const rows = (vl.data || []).filter(r => !svcFilter || r.service_id === svcFilter);
+  const form = (a) => `<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      ${sel("va_service", "서비스", [["", "(공통)"], ...services.map(s => [s.id, s.name])], "w-full", a.service_id || svcFilter || "")}
+      ${fld("va_label", "용도 * (예: Play 콘솔, 카카오디벨로퍼스)", "w-full", "text", esc(a.label || ""))}
+      ${fld("va_url", "사이트 주소", "w-full", "text", esc(a.site_url || ""))}
+      ${fld("va_login", "아이디", "w-full", "text", esc(a.login_id || ""))}
+      <div><label class="mb-1 block text-xs text-gray-500">비밀번호 ${a.id ? "(비워두면 기존 값 유지)" : ""}</label><input id="va_pw" type="password" autocomplete="new-password" class="inp w-full"></div>
+      ${fld("va_notes", "메모 (2차 인증 수단 등)", "w-full", "text", esc(a.notes || ""))}
+    </div>
+    <div class="mt-3 flex gap-2">${btn(`saveVault('${a.id || ""}')`, "저장")}${btn("vaultEdit=null; route()", "취소", "border border-gray-400 hover:bg-gray-50")}</div>`;
+  h(`<div class="flex flex-wrap items-center justify-between gap-2"><h1 class="text-lg font-bold">계정 금고</h1>
+      <div class="flex items-center gap-2">${sel("va_filter", "", [["", "전체 서비스"], ...services.map(s => [s.id, s.name])], "w-44", svcFilter)}
+      ${btn("goto('vault', val('va_filter') ? { svc: val('va_filter') } : null)", "필터", "border border-gray-400 hover:bg-gray-50")}${btn("vaultEdit='new'; route()", "+ 계정 추가")}</div></div>
+    <p class="text-xs text-gray-500">비밀번호는 서버 DB에 암호화되어 저장되고, '보기'를 누를 때만 복호화해 가져옵니다. 관리자 계정으로만 열람할 수 있습니다.</p>
+    ${vaultEdit === "new" ? card("새 계정", form({})) : ""}
+    ${rows.map(a => vaultEdit === a.id ? card(esc(a.label), form(a)) : "").join("")}
+    ${card(`저장된 계정 (${rows.length})`, tbl(["서비스", "용도", "사이트", "아이디", "비밀번호", "메모", ""], rows.map(a => [
+      esc(sname.get(a.service_id) || "공통"), esc(a.label),
+      a.site_url ? `<a href="${esc(a.site_url.startsWith("http") ? a.site_url : "https://" + a.site_url)}" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">열기 ↗</a>` : "",
+      a.login_id ? `<span class="font-mono text-xs">${esc(a.login_id)}</span> <button data-v="${esc(a.login_id)}" onclick="copyText(this.dataset.v)" class="text-xs text-gray-400 hover:text-gray-700" title="복사">⧉</button>` : "",
+      a.has_secret ? `<span id="pw_${a.id}" class="font-mono text-xs">••••••••</span> <button onclick="showPw('${a.id}')" class="text-xs text-indigo-600 hover:underline">보기</button> <button onclick="copyPw('${a.id}')" class="text-xs text-gray-400 hover:text-gray-700" title="복사">⧉</button>` : `<span class="text-gray-300">—</span>`,
+      esc(a.notes || ""),
+      `<div class="flex gap-2 text-xs"><button onclick="vaultEdit='${a.id}'; route()" class="text-indigo-600 hover:underline">수정</button>
+        <button onclick="delRow('vault_accounts','${a.id}','${esc(a.label)} 계정을 삭제할까요?')" class="text-red-500 hover:underline">삭제</button></div>`])))}`);
+}
+async function saveVault(id) {
+  const { error } = await sb.rpc("vault_put", {
+    p_id: id || null, p_service: val("va_service") || null, p_label: val("va_label").trim(), p_site_url: val("va_url").trim(),
+    p_login_id: val("va_login").trim(), p_password: id ? (val("va_pw") || null) : val("va_pw"), p_notes: val("va_notes").trim() });
+  if (error) return toast(error.message, true);
+  vaultEdit = null; toast("저장되었습니다"); route();
+}
+async function showPw(id) {
+  const { data, error } = await sb.rpc("vault_get", { p_id: id });
+  if (error) return toast(error.message, true);
+  const el = $("pw_" + id); el.textContent = data || "(없음)";
+  setTimeout(() => { if (el.isConnected) el.textContent = "••••••••"; }, 15000);   // 15초 뒤 다시 가린다
+}
+async function copyPw(id) {
+  const { data, error } = await sb.rpc("vault_get", { p_id: id });
+  if (error) return toast(error.message, true);
+  copyText(data || "");
+}
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); toast("복사했습니다"); } catch { toast("복사 실패 — 직접 선택해 복사하세요", true); }
+}
+
+/* ===== 도메인 (Cloudflare 동기화 결과) ===== */
+async function vDomains() {
+  const { data, error } = await sb.from("domains").select("*").order("expires_at", { ascending: true, nullsFirst: false }).order("name");
+  if (error) throw error;
+  const rows = data || [];
+  const dleft = (d) => { if (!d) return ""; const n = Math.round((new Date(d) - new Date()) / 864e5); return `<span class="ml-1 rounded px-1.5 py-0.5 text-[11px] ${n < 30 ? "bg-red-50 text-red-600" : n < 90 ? "bg-amber-50 text-amber-700" : "bg-green-50 text-green-700"}">${n}일</span>`; };
+  const last = rows.map(r => r.synced_at).filter(Boolean).sort().pop();
+  h(`<div class="flex flex-wrap items-center justify-between gap-2"><h1 class="text-lg font-bold">도메인</h1>
+      <span class="text-xs text-gray-500">${last ? "Cloudflare 마지막 동기화 " + kst(last) : "아직 동기화되지 않음 — 설정 › 연동에서 Cloudflare 토큰을 등록하면 매일 자동으로 가져옵니다"}</span></div>
+    ${card(`도메인 (${rows.length})`, rows.length ? tbl(["도메인", "상태", "등록처", "만료일", "자동갱신", "네임서버", "DNS", ""], rows.map(r => [
+      `<a href="https://${esc(r.name)}" target="_blank" rel="noopener" class="font-semibold text-indigo-600 hover:underline">${esc(r.name)}</a>`,
+      esc(r.status || ""), esc(r.registrar || ""),
+      r.expires_at ? r.expires_at + dleft(r.expires_at) : `<span class="text-gray-300">—</span>`,
+      r.auto_renew == null ? "" : r.auto_renew ? "켜짐" : `<span class="text-red-600">꺼짐</span>`,
+      esc((r.name_servers || []).join(", ")),
+      `${(r.dns || []).length}건`,
+      `<button onclick="toggleDns('${r.id}')" class="text-xs text-indigo-600 hover:underline">레코드</button>`]))
+      : empty("동기화된 도메인이 없습니다."))}
+    <div id="dnsBox"></div>`);
+  window._domains = rows;
+}
+function toggleDns(id) {
+  const r = (window._domains || []).find(x => x.id === id); if (!r) return;
+  $("dnsBox").innerHTML = card(`${esc(r.name)} DNS 레코드`, tbl(["타입", "이름", "값", "프록시", "TTL"],
+    (r.dns || []).map(d => [esc(d.type), esc(d.name), `<span class="font-mono text-xs">${esc(d.content)}</span>`, d.proxied ? "프록시" : "DNS only", d.ttl === 1 ? "자동" : d.ttl])));
+  $("dnsBox").scrollIntoView({ behavior: "smooth" });
+}
+
+/* ===== 설정 › 연동 ===== */
+// Cloudflare API 토큰은 금고에 label 'cloudflare_api_token' 으로 저장되고, 서버 cron 만 복호화해 쓴다. 화면으로는 다시 꺼낼 수 없다.
+async function vIntegrations() {
+  const { data } = await sb.from("vault_list").select("id,updated_at").eq("label", "cloudflare_api_token").maybeSingle();
+  h(card("Cloudflare 연동", `<p class="mb-3 text-xs leading-relaxed text-gray-500">
+      Cloudflare 대시보드 → 내 프로필 → API 토큰 → 토큰 만들기 → <b>권한: Zone › Zone › Read, Zone › DNS › Read, Account › Account Settings › Read</b> 로 만든 읽기 전용 토큰을 넣으세요.
+      저장하면 서버에 암호화되어 보관되고 매일 새벽 도메인 만료일·네임서버·DNS 레코드를 가져옵니다. 화면에서 다시 볼 수는 없습니다.</p>
+    <div class="flex flex-wrap items-end gap-2">
+      <div><label class="mb-1 block text-xs text-gray-500">API 토큰</label><input id="cf_token" type="password" autocomplete="off" class="inp w-96" placeholder="${data ? "등록됨 (" + kst(data.updated_at) + ") — 새 값을 넣으면 교체" : "토큰 붙여넣기"}"></div>
+      ${btn("saveCfToken()", data ? "교체" : "저장")}
+      ${data ? btn(`delRow('vault_accounts','${data.id}','Cloudflare 토큰을 삭제할까요? 동기화가 멈춥니다.')`, "삭제", "border border-gray-400 hover:bg-gray-50") : ""}
+    </div>
+    ${data ? `<p class="mt-3 text-xs text-green-700">✓ 토큰 등록됨. 다음 동기화 결과는 <a href="#/domains" class="underline">도메인</a> 화면에서 확인하세요.</p>` : ""}`));
+  window._cfId = data?.id || null;
+}
+async function saveCfToken() {
+  const t = val("cf_token").trim();
+  if (!t) return toast("토큰을 입력하세요", true);
+  const { error } = await sb.rpc("vault_put", { p_id: window._cfId, p_service: null, p_label: "cloudflare_api_token", p_site_url: "https://dash.cloudflare.com", p_login_id: null, p_password: t, p_notes: "서버 동기화용 (읽기 전용)" });
+  if (error) return toast(error.message, true);
+  toast("토큰을 저장했습니다. 다음 새벽부터 동기화됩니다."); route();
 }
 
 /* ===== 시작 ===== */
