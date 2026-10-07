@@ -93,3 +93,10 @@
 - 브라우저는 비밀번호를 vault_get RPC 로 클릭 시에만 받는다. 목록 조회는 secret 컬럼을 select 하지 않는 뷰(vault_list) 를 쓴다.
 - Cloudflare 토큰은 Claude 가 아니라 사용자가 ERP 설정 화면에 직접 입력한다(자격증명 입력은 사용자 몫). cron 이 DB 에서 복호화해 쓰므로 토큰이 브라우저로 돌아 나오지 않도록 vault_get 은 label='cloudflare_api_token' 행을 거부한다.
 - services 는 자유 서식 메모가 많아 핵심 열만 고정하고 나머지는 notes 로.
+
+## 2026-10-07 (Claude\Projects 연결)
+
+- 사용자의 다른 프로젝트는 전부 `C:\Users\user\Claude\Projects\` 에 있다. 색인은 그 폴더의 `PROJECTS.md`(상세) 와 `README.md`(한눈에). **다른 서비스(모아학원·massa·KBizV·Vnong·EDI·세금계산서 자동화 등)를 건드릴 땐 먼저 거기서 해당 프로젝트의 `context-notes.md` 를 읽는다.**
+- 이 리포는 `C:\Users\user\Claude\Projects\ERP System` 정션으로도 보인다(실체는 `C:\Users\user\erp-system`). git 은 실체 경로에서 돌린다.
+- 서버·보안·백업·금고 키 문서 `VPS-인수인계.md` 는 리포에 넣지 않는다(비공개). 사본을 `C:\Users\user\Claude\Projects\ERP System` 바깥인 `C:\Users\user\Claude\VPS-인수인계.md` 에 둔다.
+- 다른 프로젝트와 겹치는 지점: 세금계산서 자동화(홈택스 발행 ↔ ERP 적재), EDI System(외부 문서 매핑), 모아학원·massa·KBizV(같은 VPS 스택, 서비스 관리 대장).
